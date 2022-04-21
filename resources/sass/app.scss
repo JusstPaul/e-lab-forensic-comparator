@@ -1,0 +1,141 @@
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+@layer base {
+    #app {
+        @apply h-full flex flex-col;
+    }
+
+    .bg-primary {
+        @apply bg-cyan-700 text-slate-200;
+    }
+
+<<<<<<< HEAD
+    .bg-dark {
+        @apply bg-slate-200;
+    }
+
+=======
+>>>>>>> 9a441ad (Start working on Profile Edit)
+    .bg-light {
+        @apply bg-slate-100;
+    }
+
+    .bg-light-dark {
+        @apply bg-slate-200;
+    }
+
+<<<<<<< HEAD
+    .border-primary {
+        @apply border-cyan-700;
+    }
+
+    .border-dark {
+        @apply border-slate-200;
+    }
+
+    .text-primary {
+        @apply text-cyan-700;
+    }
+
+    .text-light {
+        @apply text-slate-100;
+=======
+    .border-dark {
+        @apply border-slate-400;
+>>>>>>> 9a441ad (Start working on Profile Edit)
+    }
+}
+
+@layer components {
+    @mixin _text-input($types) {
+        @each $type in $types {
+            &[type=#{$type}] {
+<<<<<<< HEAD
+                @apply rounded-md px-2 py-1 border-dark form-input;
+=======
+                @apply rounded-md px-2 py-1 border-dark;
+>>>>>>> 9a441ad (Start working on Profile Edit)
+            }
+        }
+    }
+
+    .card {
+        @apply px-4 py-8 bg-gray-50 border border-gray-200 rounded-md shadow-sm block;
+    }
+
+<<<<<<< HEAD
+    .card-sm {
+        @apply card p-2;
+    }
+
+    .card-legend {
+        @apply absolute top-0 left-0 w-full bg-primary p-4 rounded-t-md shadow-sm;
+    }
+
+    .card-legend-body {
+        @apply mt-8;
+    }
+
+=======
+>>>>>>> 9a441ad (Start working on Profile Edit)
+    .icon {
+        @apply w-6 h-6;
+    }
+
+    .btn-primary {
+        @apply bg-primary px-4 py-1 rounded-md disabled:opacity-75;
+    }
+
+    .label {
+        @apply font-medium text-sm;
+    }
+
+    .error {
+        @apply font-light text-sm text-red-600;
+    }
+
+    .table-header {
+<<<<<<< HEAD
+        @apply font-semibold text-center md:text-left border border-slate-300 w-1/4 px-2 md:px-4 py-1 md:py-2;
+=======
+        @apply font-semibold border border-slate-300 w-1/4 px-4 py-2;
+>>>>>>> 9a441ad (Start working on Profile Edit)
+    }
+
+    .table-data {
+        @apply border border-slate-300 px-4 py-2;
+    }
+
+    body {
+        @apply h-screen antialiased bg-slate-100 text-gray-900;
+    }
+
+    input {
+        @include _text-input(text email password number time day date);
+    }
+<<<<<<< HEAD
+
+    select {
+        @apply rounded-md px-4 py-1 border-dark form-input;
+    }
+
+    fieldset {
+        @apply relative;
+    }
+}
+
+@layer utilities {
+    .banner {
+        background-image: url("/storage/assets/banner.jpg");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: cover;
+        filter: contrast("110%");
+    }
+=======
+>>>>>>> 9a441ad (Start working on Profile Edit)
+}

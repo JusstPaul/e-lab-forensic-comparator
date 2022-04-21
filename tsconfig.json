@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      // "esnext"
+    ],
+    // "allowJs": true,
+    "skipLibCheck": false,
+    "allowSyntheticDefaultImports": true, //you need this
+    "strict": true,
+    "alwaysStrict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsxdev", // can be (react, react-jsxdev, react-jsx). preserve will not convert jsx and preserve it, you don't need that
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "baseUrl": "./",
+    "paths": {
+        "@/*": [
+            "resources/ts/*"
+        ]
+    }
+  },
+  "include": [
+    "resources/ts/**/*" // I have my tsx and ts in this directory, modify this as per your needs
+  ]
+}
