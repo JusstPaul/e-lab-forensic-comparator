@@ -2,7 +2,7 @@ import { FC, ChangeEvent } from "react";
 import { useForm } from "@inertiajs/inertia-react";
 import TextInput from "@/Components/TextInput";
 import CheckBox from "@/Components/CheckBox";
-import Auth from "@/Layouts/Auth";
+import Auth, { SideBarSection } from "@/Layouts/Auth";
 
 type Profile = {
     last_name: string;
@@ -15,9 +15,10 @@ type Props = {
     role: string;
     first: boolean;
     profile?: Profile;
+    sidebar?: Array<SideBarSection>;
 };
 
-const EditProfile: FC<Props> = ({ role, first, profile }) => {
+const EditProfile: FC<Props> = ({ role, first, profile, sidebar }) => {
     const { data, setData, post, processing, errors } = useForm(
         profile
             ? {
@@ -78,7 +79,7 @@ const EditProfile: FC<Props> = ({ role, first, profile }) => {
     };
 
     return (
-        <Auth role={role}>
+        <Auth role={role} sidebar={sidebar}>
             <div className="pt-4 container-lg">
                 <p className="font-light text-lg w-fit mx-auto mb-4">
                     Edit Profile

@@ -2,7 +2,7 @@ import { FC, ChangeEventHandler, ChangeEvent } from "react";
 
 type Props = {
     label: string;
-    value: number;
+    value?: number;
     name: string;
     defaultChecked?: boolean;
     disabled?: boolean;

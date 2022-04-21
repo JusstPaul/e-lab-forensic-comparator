@@ -14,13 +14,15 @@ import {
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
 } from "@heroicons/react/outline";
+import SidebarElement from "@/Components/SidebarElement";
+import isMobile from "@/Lib/isMobile";
 
 type SideBarSectionElements = {
     display: string;
     link: string;
 };
 
-type SideBarSection = {
+export type SideBarSection = {
     title: string;
     elements: Array<SideBarSectionElements>;
 };
@@ -35,18 +37,12 @@ type Props = PropsWithChildren<{
 const Auth = ({ title, role, sidebar, class_id, children }: Props) => {
     const headTitle = "e-Lab Forensic Comparator";
 
-    const [isMobile, setIsMobile] = useState(window.innerWidth >= 1024);
     const [isOpen, setOpen] = useState(false);
     const [isSideOpen, setSideOpen] = useState(false);
 
+    const isMobileCheck = isMobile();
+
     const { url } = usePage();
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth >= 1024);
-
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, []);
 
     return (
         <>
@@ -67,7 +63,7 @@ const Auth = ({ title, role, sidebar, class_id, children }: Props) => {
                         Home
                     </Link>
                 )}
-                {isMobile ? (
+                {isMobileCheck ? (
                     <>
                         <div className="text-center font-bold">
                             Data Center College of the Philippines of Laoag,
@@ -223,7 +219,23 @@ const Auth = ({ title, role, sidebar, class_id, children }: Props) => {
                                 )}
                             </>
                         ) : (
-                            <></>
+                            <>
+                                {isSideOpen ? (
+                                    <div className="py-8">
+                                        {sidebar?.map((value, index) => (
+                                            <div key={index}>
+                                                <SidebarElement
+                                                    sidebar={value}
+                                                    hasCounter={true}
+                                                    highlight={true}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <></>
+                                )}
+                            </>
                         )}
                     </aside>
                 )}

@@ -1,15 +1,16 @@
 import { PropsWithChildren } from "react";
 import { Link } from "@inertiajs/inertia-react";
-import Auth from "./Auth";
+import Auth, { SideBarSection } from "./Auth";
 
 type Props = PropsWithChildren<{
     role: string;
     mode: 0 | 1 | 2 | 3;
     id: string;
+    sidebar?: Array<SideBarSection>;
 }>;
 
-const Class = ({ role, children, mode, id }: Props) => (
-    <Auth role={role} class_id={id}>
+const Class = ({ role, children, mode, id, sidebar }: Props) => (
+    <Auth role={role} class_id={id} sidebar={sidebar}>
         <div
             className={
                 "flex justify-around pt-6 border-b border-dark " +
@@ -25,15 +26,15 @@ const Class = ({ role, children, mode, id }: Props) => (
             >
                 Overview
             </Link>
-            <a
-                href="#"
+            <Link
+                href={"/class/" + id + "/students/view"}
                 className={
                     "font-semibold pb-5 " +
                     (mode == 1 && "text-primary border-b-4 border-primary")
                 }
             >
                 Students
-            </a>
+            </Link>
             <a
                 href="#"
                 className={

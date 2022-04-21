@@ -33,7 +33,13 @@
         "@inertiajs/inertia": "^0.11.0",
         "@inertiajs/inertia-react": "^0.8.0",
         "@inertiajs/progress": "^0.2.7",
+        "moment": "^2.29.3",
         "react": "^18.0.0",
-        "react-dom": "^18.0.0"
+        "react-compare-slider": "^2.2.0",
+        "react-dom": "^18.0.0",
+        "react-simple-image-viewer": "^1.2.1",
+        "react-tooltip": "^4.2.21",
+        "suneditor": "^2.42.0",
+        "suneditor-react": "^3.4.0"
     }
 }

@@ -4,6 +4,8 @@
 
 @tailwind utilities;
 
+@import "suneditor/dist/css/suneditor.min.css";
+
 @layer base {
     #app {
         @apply h-full flex flex-col;
@@ -11,6 +13,10 @@
 
     .bg-primary {
         @apply bg-cyan-700 text-slate-200;
+    }
+
+    .bg-alt {
+        @apply bg-gray-500 text-slate-200;
     }
 
     .bg-dark {
@@ -71,8 +77,16 @@
         @apply w-6 h-6;
     }
 
+    .icon-sm {
+        @apply w-4 h-4;
+    }
+
     .btn-primary {
         @apply bg-primary px-4 py-1 rounded-md disabled:opacity-75;
+    }
+
+    .btn-alt {
+        @apply bg-alt px-4 py-1 rounded-md disabled:opacity-75;
     }
 
     .label {

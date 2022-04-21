@@ -26,4 +26,9 @@ class Classes extends Model
     {
         return $this->hasMany(ClassesStudents::class, 'classes_id');
     }
+
+    public function activities()
+    {
+        return $this->hasMany(ClassesActivities::class, 'classes_id');
+    }
 }

@@ -7,13 +7,14 @@ type Error = {
 };
 
 type Props = {
-    label: string;
-    value: string;
+    label?: string;
+    value: string | number;
     name: string;
     type?: string;
     className?: string;
     error?: Error;
     isFocused?: boolean;
+    noLabel?: boolean;
     onChange?: ChangeEventHandler<HTMLInputElement>;
 };
 
@@ -25,11 +26,24 @@ const Input: FC<Props> = ({
     className,
     error,
     isFocused,
+    noLabel,
     onChange,
 }) => (
     <div className={`mb-4 ` + className}>
         <label className="w-full">
-            <span className="label block">{label}</span>
+            {noLabel ? (
+                <>
+                    {label ? (
+                        <span className="label block">{label}</span>
+                    ) : (
+                        <span className="label block invisible">
+                            Placeholder
+                        </span>
+                    )}
+                </>
+            ) : (
+                <></>
+            )}
             <input
                 name={name}
                 type={!type ? "text" : type}
