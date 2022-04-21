@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { PropsWithChildren } from "react";
 import { Head, Link, usePage } from "@inertiajs/inertia-react";
-<<<<<<< HEAD
 import {
     MenuIcon,
     XIcon,
@@ -25,32 +24,20 @@ type SideBarSection = {
     title: string;
     elements: Array<SideBarSectionElements>;
 };
-=======
-import { MenuIcon, XIcon } from "@heroicons/react/solid";
->>>>>>> 9a441ad (Start working on Profile Edit)
 
 type Props = PropsWithChildren<{
     title?: string;
     role: string;
-<<<<<<< HEAD
     sidebar?: Array<SideBarSection>;
     class_id?: string;
 }>;
 
 const Auth = ({ title, role, sidebar, class_id, children }: Props) => {
-=======
-}>;
-
-const Auth = ({ title, role, children }: Props) => {
->>>>>>> 9a441ad (Start working on Profile Edit)
     const headTitle = "e-Lab Forensic Comparator";
 
     const [isMobile, setIsMobile] = useState(window.innerWidth >= 1024);
     const [isOpen, setOpen] = useState(false);
-<<<<<<< HEAD
     const [isSideOpen, setSideOpen] = useState(false);
-=======
->>>>>>> 9a441ad (Start working on Profile Edit)
 
     const { url } = usePage();
 
@@ -96,16 +83,12 @@ const Auth = ({ title, role, children }: Props) => {
                                     Create User
                                 </Link>
                             )}
-<<<<<<< HEAD
                             <Link
                                 href="/profile/edit"
                                 className="font-semibold"
                             >
                                 Profile
                             </Link>
-=======
-                            <a href="#">Profile</a>
->>>>>>> 9a441ad (Start working on Profile Edit)
                             <Link
                                 href="/logout"
                                 method="post"
@@ -134,39 +117,23 @@ const Auth = ({ title, role, children }: Props) => {
                                 {role === "admin" && (
                                     <Link
                                         href="/user/create"
-<<<<<<< HEAD
                                         className="font-semibold block"
-=======
-                                        className="font-semibold"
->>>>>>> 9a441ad (Start working on Profile Edit)
                                         disabled={url === "/user/create"}
                                     >
                                         Create User
                                     </Link>
                                 )}
-<<<<<<< HEAD
                                 <Link
                                     href="/profile/edit"
                                     className="font-semibold w-fit ml-auto block"
                                 >
                                     Profile
                                 </Link>
-=======
-                                <div>
-                                    <a href="#" className="font-semibold">
-                                        Profile
-                                    </a>
-                                </div>
->>>>>>> 9a441ad (Start working on Profile Edit)
                                 <Link
                                     href="/logout"
                                     method="post"
                                     as="button"
-<<<<<<< HEAD
                                     className="font-semibold w-fit ml-auto block"
-=======
-                                    className="font-semibold"
->>>>>>> 9a441ad (Start working on Profile Edit)
                                 >
                                     Logout
                                 </Link>
@@ -175,7 +142,6 @@ const Auth = ({ title, role, children }: Props) => {
                     </>
                 )}
             </header>
-<<<<<<< HEAD
             <main className="relative container-lg flex h-full overflow-hidden">
                 {role == "admin" ? (
                     <></>
@@ -263,9 +229,6 @@ const Auth = ({ title, role, children }: Props) => {
                 )}
                 <div className="flex-grow h-full overflow-auto">{children}</div>
             </main>
-=======
-            <main className="container-lg">{children}</main>
->>>>>>> 9a441ad (Start working on Profile Edit)
         </>
     );
 };

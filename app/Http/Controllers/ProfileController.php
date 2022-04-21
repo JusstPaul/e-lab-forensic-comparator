@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-<<<<<<< HEAD
 use App\Models\Profile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -39,11 +38,4 @@ class ProfileController extends Controller
         return redirect('/');
 
     }
-=======
-use Illuminate\Http\Request;
-
-class ProfileController extends Controller
-{
-    //
->>>>>>> 9a441ad (Start working on Profile Edit)
 }

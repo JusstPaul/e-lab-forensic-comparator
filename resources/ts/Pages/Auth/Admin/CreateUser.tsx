@@ -16,10 +16,6 @@ const CreateUser: FC<Props> = ({ role }) => {
 
     const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
-<<<<<<< HEAD
-=======
-        console.log(value);
->>>>>>> 9a441ad (Start working on Profile Edit)
         switch (name) {
             case "username":
                 setData({ ...data, username: value });
@@ -42,11 +38,7 @@ const CreateUser: FC<Props> = ({ role }) => {
                     className="card w-fit mx-auto"
                     onSubmit={(event) => {
                         event.preventDefault();
-<<<<<<< HEAD
                         post("/user/create");
-=======
-                        post("/create-user");
->>>>>>> 9a441ad (Start working on Profile Edit)
                     }}
                 >
                     <TextInput

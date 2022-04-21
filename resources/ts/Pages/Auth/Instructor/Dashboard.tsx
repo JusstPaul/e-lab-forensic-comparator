@@ -1,5 +1,4 @@
 import { FC } from "react";
-<<<<<<< HEAD
 import { Link } from "@inertiajs/inertia-react";
 import { DotsVerticalIcon } from "@heroicons/react/solid";
 import Auth from "@/Layouts/Auth";
@@ -60,17 +59,6 @@ const Dashboard: FC<Props> = ({ role, classes, name }) => (
                 )}
             </div>
         </div>
-=======
-import Auth from "@/Layouts/Auth";
-
-type Props = {
-    role: string;
-};
-
-const Dashboard: FC<Props> = ({ role }) => (
-    <Auth role={role}>
-        <div>Dashboard</div>
->>>>>>> 9a441ad (Start working on Profile Edit)
     </Auth>
 );
 

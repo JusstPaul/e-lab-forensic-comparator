@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-<<<<<<< HEAD
 /**
  * App\Models\Profile
  *
@@ -32,8 +31,6 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder|Profile whereUserId($value)
  * @mixin \Eloquent
  */
-=======
->>>>>>> 9a441ad (Start working on Profile Edit)
 class Profile extends Model
 {
     use HasFactory;

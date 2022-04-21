@@ -79,7 +79,6 @@ class User extends Authenticatable
         return $this->hasOne(Profile::class);
     }
 
-<<<<<<< HEAD
     public function student_class()
     {
         return $this->belongsTo(ClassesStudents::class, 'student_id');
@@ -90,6 +89,4 @@ class User extends Authenticatable
         return $this->hasMany(Classes::class, 'instructor_id');
     }
 
-=======
->>>>>>> 9a441ad (Start working on Profile Edit)
 }

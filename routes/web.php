@@ -1,15 +1,11 @@
 <?php
 
-<<<<<<< HEAD
 use App\Http\Controllers\ClassesController;
 use App\Http\Controllers\ClassesStudentsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Models\Classes;
 use App\Models\ClassesStudents;
-=======
-use App\Http\Controllers\UserController;
->>>>>>> 9a441ad (Start working on Profile Edit)
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -38,11 +34,7 @@ Route::group(['middleware' => ['guest']], function () {
 // Role: Admin
 Route::group(['middleware' => ['auth', 'role:admin']], function () {
     // GET
-<<<<<<< HEAD
     Route::get('/admin/dashboard', fn() => Inertia::render('Auth/Admin/Dashboard', [
-=======
-    Route::get('/', fn() => Inertia::render('Auth/Admin/Dashboard', [
->>>>>>> 9a441ad (Start working on Profile Edit)
         'role' => 'admin',
         'users' => fn() => User::with('roles')
             ->get()
@@ -54,11 +46,7 @@ Route::group(['middleware' => ['auth', 'role:admin']], function () {
             ]),
     ]))->name('admin.dashboard');
 
-<<<<<<< HEAD
     Route::get('/user/create', fn() => Inertia::render('Auth/Admin/CreateUser', [
-=======
-    Route::get('/create/user', fn() => Inertia::render('Auth/Admin/CreateUser', [
->>>>>>> 9a441ad (Start working on Profile Edit)
         'role' => 'admin',
     ]))->name('admin.user.create');
 
@@ -70,20 +58,15 @@ Route::group(['middleware' => ['auth', 'role:admin']], function () {
 Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     // GET
     Route::get('/instructor/dashboard', function () {
-<<<<<<< HEAD
         $user = auth()->user();
         $profile = $user->profile;
 
         if ($user->profile == null) {
-=======
-        if (auth()->user()->profile == null) {
->>>>>>> 9a441ad (Start working on Profile Edit)
             return redirect()->route('user.profile.edit');
         }
 
         return Inertia::render('Auth/Instructor/Dashboard', [
             'role' => 'instructor',
-<<<<<<< HEAD
             'classes' => fn() => $user->classes->map(fn($value) => [
                 'id' => Hashids::encode($value->id),
                 'code' => $value->code,
@@ -142,15 +125,10 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     // POST
     Route::post('/class/create', [ClassesController::class, 'store']);
     Route::post('/class/{class_id}/students/add', [ClassesStudentsController::class, 'store']);
-=======
-        ]);
-    })->name('instructor.dashboard');
->>>>>>> 9a441ad (Start working on Profile Edit)
 });
 
 // Role: Instructor and Student
 Route::group(['middleware' => ['auth', 'role:instructor|student']], function () {
-<<<<<<< HEAD
     // GET
     Route::get('/class/overview/{class_id}', function ($class_id) {
         $user = auth()->user();
@@ -195,17 +173,6 @@ Route::group(['middleware' => ['auth', 'role:instructor|student']], function () 
 
     // POST
     Route::post('/profile/edit', [ProfileController::class, 'store_or_update']);
-=======
-    Route::get('/class/overview', function () {
-        if (auth()->user()->profile == null) {
-            return redirect()->route('user.profile.edit');
-        }
-
-        return Inertia::render('InstructorAndStudent/ClassOverview', [
-            'role' => fn() => auth()->user()->roles->first()->name,
-        ]);
-    })->name('class.overview');
->>>>>>> 9a441ad (Start working on Profile Edit)
 });
 
 // Authenticated middlewares
@@ -219,23 +186,13 @@ Route::group(['middleware' => ['auth']], function () {
         } else if ($user->hasRole('instructor')) {
             return redirect()->route('instructor.dashboard');
         } else {
-<<<<<<< HEAD
             if ($user->profile == null) {
                 return redirect()->route('user.profile.edit');
             }
-=======
->>>>>>> 9a441ad (Start working on Profile Edit)
             return redirect()->route('class.overview');
         }
     });
 
-<<<<<<< HEAD
-=======
-    Route::get('/profile/edit', fn() => Inertia::render('Auth/EditProfile', [
-        'role' => auth()->user()->roles->first()->name,
-    ]))->name('user.profile.edit');
-
->>>>>>> 9a441ad (Start working on Profile Edit)
     // POST
     Route::post('/logout', [UserController::class, 'logout']);
 

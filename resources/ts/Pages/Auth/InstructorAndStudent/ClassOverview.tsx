@@ -1,5 +1,4 @@
 import { FC } from "react";
-<<<<<<< HEAD
 import Class from "@/Layouts/Class";
 
 type Classes = {
@@ -42,14 +41,3 @@ const ClassOverview: FC<Props> = ({ role, classes }) => (
 );
 
 export default ClassOverview;
-=======
-import Auth from "@/Layouts/Auth";
-
-type Props = {
-    role: string;
-};
-
-const ClassOverview: FC<Props> = ({ role }) => (
-    <Auth role={role}>Class Overview</Auth>
-);
->>>>>>> 9a441ad (Start working on Profile Edit)
