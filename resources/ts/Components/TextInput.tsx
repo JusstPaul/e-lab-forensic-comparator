@@ -32,6 +32,8 @@ const Input: FC<Props> = ({
     <div className={`mb-4 ` + className}>
         <label className="w-full">
             {noLabel ? (
+                <></>
+            ) : (
                 <>
                     {label ? (
                         <span className="label block">{label}</span>
@@ -41,8 +43,6 @@ const Input: FC<Props> = ({
                         </span>
                     )}
                 </>
-            ) : (
-                <></>
             )}
             <input
                 name={name}
