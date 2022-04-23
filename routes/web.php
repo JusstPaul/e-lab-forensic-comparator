@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivitiesAnswerController;
 use App\Http\Controllers\ClassesActivitiesController;
 use App\Http\Controllers\ClassesController;
 use App\Http\Controllers\ClassesStudentsController;
@@ -186,6 +187,44 @@ Route::group(['middleware', ['auth', 'role:student']], function () {
             'sidebar' => $sidebar,
         ]);
     })->name('class.activity');
+
+    Route::get('/class/{class_id}/activity/{activity_id}/comparator/{answer_index}',
+        function ($class_id, $activity_id, $answer_index) {
+
+            $classes = Classes::find(Hashids::decode($class_id)[0]);
+
+            $activities = $classes->activities()->get();
+            $assignments = $activities->where('type', 'assignment')->map(fn($value) => [
+                'display' => $value->title,
+                'link' => '/' . 'class/' . $class_id . '/' . 'activity/' . Hashids::encode($value->id),
+            ]);
+
+            $exams = $activities->where('type', 'exam')->map(fn($value) => [
+                'display' => $value->title,
+                'link' => '/' . 'class/' . $class_id . '/' . 'activity/' . Hashids::encode($value->id),
+            ]);
+
+            $sidebar = [
+                [
+                    'title' => 'Exams',
+                    'elements' => $exams,
+                ],
+                [
+                    'title' => 'Assignments',
+                    'elements' => $assignments,
+                ],
+            ];
+
+            return Inertia::render('Auth/Student/Comparator', [
+                'id' => $class_id,
+                'activity_id' => $activity_id,
+                'answer_index' => $answer_index,
+                'sidebar' => $sidebar,
+            ]);
+        })->name('class.activity.comparator');
+
+    // POST
+    Route::post('/class/{class_id}/activity/{activity_id}', [ActivitiesAnswerController::class, 'store']);
 });
 
 // Role: Instructor and Student
@@ -207,7 +246,10 @@ Route::group(['middleware' => ['auth', 'role:instructor|student']], function () 
 
             $instructor = $classes->user->profile;
 
-            $activities = $classes->activities()->get();
+            $done_activities = auth()->user()->activities()->get();
+
+            $activities = $classes->activities()->get()
+                ->filter(fn($value) => $done_activities->where('activity_id', $value->id)->first() == null);
 
             $assignments = $activities->where('type', 'assignment')->map(fn($value) => [
                 'display' => $value->title,

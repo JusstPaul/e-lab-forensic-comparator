@@ -1,628 +1,345 @@
-import {
-    ChangeEventHandler,
-    CSSProperties,
-    Dispatch,
-    FC,
-    SetStateAction,
-    useState,
-} from "react";
-import {
-    setDataByKeyValuePair,
-    setDataByMethod,
-    setDataByObject,
-    useForm,
-} from "@inertiajs/inertia-react";
-import {
-    ReactCompareSlider,
-    ReactCompareSliderImage,
-    ReactCompareSliderHandle,
-} from "react-compare-slider";
-import { SideBarSection } from "@/Layouts/Auth";
-import {
-    Question,
-    Questions,
-    Activity,
-} from "../Instructor/ClassCreateActivity";
-import RadioGroup from "@/Components/RadioGroup";
-import CheckBox from "@/Components/CheckBox";
-import TextInput from "@/Components/TextInput";
-import Class from "@/Layouts/Class";
-import {
-    ArrowDownIcon,
-    ArrowLeftIcon,
-    ArrowRightIcon,
-    ArrowUpIcon,
-    ZoomInIcon,
-    ZoomOutIcon,
-} from "@heroicons/react/solid";
-import useScreenOrientation from "@/Lib/useScreenOrientation";
-import isMobile from "@/Lib/isMobile";
-import moment from "moment";
-
-type Comparator = {
-    position: number;
-    images: Array<string>;
-    styles: {
-        left: CSSProperties;
-        right: CSSProperties;
-    };
-    scales: {
-        left: number;
-        right: number;
-    };
-    location: {
-        left: {
-            x: number;
-            y: number;
-        };
-        right: {
-            x: number;
-            y: number;
-        };
-    };
-    current: {
-        left: string;
-        right: string;
-    };
-    select_mode: "left" | "right";
-    essay: string;
-};
+import { ChangeEvent, FC } from 'react'
+import { Inertia } from '@inertiajs/inertia'
+import { useForm, usePage } from '@inertiajs/inertia-react'
+import { SideBarSection } from '@/Layouts/Auth'
+import { Questions, Activity } from '../Instructor/ClassCreateActivity'
+import RadioGroup from '@/Components/RadioGroup'
+import CheckBox from '@/Components/CheckBox'
+import TextInput from '@/Components/TextInput'
+import Error from '@/Components/Error'
+import Class from '@/Layouts/Class'
+import moment from 'moment'
+import { useSelector, useDispatch } from 'react-redux'
+import { AnswerStates } from '@/Lib/answersReducer'
+import { cloneDeep } from 'lodash'
 
 type Props = {
-    id: string;
-    activity_id: string;
-    sidebar?: Array<SideBarSection>;
-    activity: {
-        id: string;
-        title: string;
-        type: Activity;
-        date_end: string;
-        time_end: string;
-        questions: Questions;
-        created_at: string;
-    };
-    total_points: number;
-};
+  id: string
+  activity_id: string
+  sidebar?: Array<SideBarSection>
+  activity: {
+    id: string
+    title: string
+    type: Activity
+    date_end: string
+    time_end: string
+    questions: Questions
+    created_at: string
+  }
+  total_points: number
+}
 
 const ActivityAnswer: FC<Props> = ({
-    id,
-    activity_id,
-    sidebar,
-    activity,
-    total_points,
+  id,
+  activity_id,
+  sidebar,
+  activity,
+  total_points,
 }) => {
-    const date = activity.date_end + " " + activity.time_end;
-    const isLate = () => {
-        return new Date(date).getTime() <= new Date().getTime();
-    };
+  const date = activity.date_end + ' ' + activity.time_end
+  const isLate = new Date(date).getTime() <= new Date().getTime()
 
-    const orientation = useScreenOrientation();
-    // TODO: For comparator mobile support detection
-    const mobile = isMobile();
+  const { errors: error_bag } = usePage().props
 
-    const [isComparatorOpen, setComparatorOpen] = useState(false);
-    const [comparatorIndex, setComparatorIndex] = useState(0);
+  const answers = useSelector<AnswerStates, AnswerStates['answers']>(
+    (state) => state.answers
+  )
+  const dispatch = useDispatch()
 
-    const initializeData = () => {
-        const data: Array<string | number | Array<string> | Comparator> = [];
-
-        activity.questions.forEach((element) => {
-            if (element.type == "question") {
-                if (
-                    element.choices?.active &&
-                    element.choices?.type == "checkbox"
-                ) {
-                    data.push([]);
-                } else {
-                    data.push("");
+  const initializeAnswers = () => {
+    const emptyAnswer = {
+      id: activity_id,
+      data: activity.questions.map((value) => {
+        switch (value.type) {
+          //  @ts-expect-error
+          case 'question':
+            if (value.choices && value.choices.active == 1) {
+              if (value.choices.type == 'radio') {
+                return {
+                  points: value.points,
+                  answer: value.choices.data[0],
                 }
-            } else if (element.type == "comparator") {
-                data.push({
-                    position: 50,
-                    images: element.files as string[],
-                    styles: { left: {}, right: {} },
-                    scales: { left: 0, right: 0 },
-                    current: {
-                        left: element.files![0] as string,
-                        right: element.files![1] as string,
-                    },
-                    location: {
-                        left: {
-                            x: 0,
-                            y: 0,
-                        },
-                        right: {
-                            x: 0,
-                            y: 0,
-                        },
-                    },
-                    select_mode: "left",
-                    essay: "",
-                } as Comparator);
-            } else {
-                data.push("");
+              }
             }
-        });
-
-        return data;
-    };
-
-    const { data, setData, post, processing, errors } = useForm<{
-        answers: Array<string | number | Array<string> | Comparator>; // TODO: Add comparator state declaration
-    }>("Activity:" + activity_id + "/Class:" + id, {
-        answers: initializeData(),
-    });
-
-    const renderQuestion = (index: number) => {
-        switch (activity.questions[index].type) {
-            case "directions":
-                return (
-                    <div className="prose">
-                        <div
-                            dangerouslySetInnerHTML={{
-                                __html: activity.questions[index].instruction,
-                            }}
-                        ></div>
-                    </div>
-                );
-            case "question":
-                const hasChoices =
-                    activity.questions[index].choices?.active ?? 0;
-                return (
-                    <div>
-                        <div className="prose">
-                            {activity.questions[index].instruction}
-                        </div>
-                        <div className="pt-4">
-                            {hasChoices == 1 ? (
-                                <div>
-                                    {activity.questions[index].choices!.type ==
-                                    "radio" ? (
-                                        <RadioGroup
-                                            name={"choice-" + index}
-                                            values={
-                                                activity.questions[index]
-                                                    .choices!.data
-                                            }
-                                        />
-                                    ) : (
-                                        // TODO: Checkbox
-                                        activity.questions[
-                                            index
-                                        ].choices!.data.map((value, idx) => (
-                                            <CheckBox
-                                                label={value}
-                                                name="choice-checked"
-                                                key={idx}
-                                            />
-                                        ))
-                                    )}
-                                </div>
-                            ) : (
-                                // TODO: Create textbox for no choice question
-                                <TextInput
-                                    name="question"
-                                    value={
-                                        data.answers[index] as number | string
-                                    }
-                                    noLabel={true}
-                                />
-                            )}
-                        </div>
-                    </div>
-                );
-            case "comparator":
-                return (
-                    <div>
-                        <div className="prose">
-                            {activity.questions[index].instruction}
-                        </div>
-                        <div className="pt-4 flex justify-center">
-                            <button
-                                type="button"
-                                className="btn-primary"
-                                onClick={() => {
-                                    setComparatorIndex(index);
-                                    setComparatorOpen(true);
-                                }}
-                            >
-                                Open Comparator
-                            </button>
-                        </div>
-                    </div>
-                );
-            default:
-                return <div className="error">Invalid question type!</div>;
+          case 'essay':
+            return {
+              points: value.points,
+              answer: '',
+            }
+          case 'comparator':
+            return {
+              points: value.points,
+              answer: {
+                title: activity.title,
+                date: date,
+                instructions: value.instruction,
+                position: 50,
+                images: value.files,
+                styles: {
+                  left: {},
+                  right: {},
+                },
+                scales: {
+                  left: 1,
+                  right: 1,
+                },
+                location: {
+                  left: {
+                    x: 0,
+                    y: 0,
+                  },
+                  right: {
+                    x: 0,
+                    y: 0,
+                  },
+                },
+                current: {
+                  left: 0,
+                  right: 1,
+                },
+                select_mode: 'left',
+                essay: '',
+              },
+            }
+          case 'directions':
+          default:
+            return undefined
         }
-    };
+      }),
+    }
 
-    return (
-        <Class id={id} mode={3} role="student" sidebar={sidebar}>
-            <div>
-                <div className="text-center py-4">
-                    <div>
-                        <p className="text-xl">{activity.title}</p>
-                    </div>
-                    <div>
-                        <p
-                            className={
-                                "text-sm " + (isLate() && "text-red-500")
+    const findAnswer = answers.find((value) => value.id == activity_id)
+
+    if (findAnswer) {
+      return cloneDeep(findAnswer)
+    }
+
+    dispatch({ type: 'ADD_ANSWER', payload: emptyAnswer })
+    return cloneDeep(emptyAnswer)
+  }
+
+  const { data, setData, post, processing, errors } = useForm({
+    answers: initializeAnswers(),
+  })
+
+  const renderQuestionItem = (index: number) => {
+    const { type, instruction } = activity.questions[index]
+
+    switch (type) {
+      case 'directions':
+        return (
+          <div className="prose">
+            <div dangerouslySetInnerHTML={{ __html: instruction }}></div>
+          </div>
+        )
+      case 'question': {
+        const {
+          data: choice_data,
+          active,
+          type: choice_type,
+        } = activity.questions[index].choices ?? {
+          data: [],
+          type: 'checkbox',
+          active: 0,
+        }
+
+        const handleInputChange = (
+          event: ChangeEvent<HTMLInputElement>,
+          val?: string
+        ) => {
+          const { value, name, checked } = event.target
+          const nAnswers = data.answers!
+
+          if (name == 'choice') {
+            if (checked) {
+              nAnswers.data![index] = {
+                points: data.answers!.data![index]!.points,
+                answer: [
+                  ...(nAnswers.data![index]!.answer as Array<string>),
+                  val!,
+                ],
+              }
+            } else {
+              const idx = (
+                nAnswers.data![index]!.answer as Array<string>
+              ).indexOf(value)
+              nAnswers.data![index]!.answer = (
+                nAnswers.data![index]!.answer as Array<string>
+              ).splice(idx, 1)
+            }
+          } else {
+            nAnswers.data![index] = {
+              points: data.answers!.data![index]!.points,
+              answer: value,
+            }
+          }
+          setData({ ...data, answers: nAnswers })
+        }
+
+        return (
+          <div>
+            <div className="prose">{instruction}</div>
+            <div className="mt-4">
+              {active == 1 ? (
+                <>
+                  {choice_type == 'checkbox' ? (
+                    <>
+                      {choice_data.map((val, idx) => (
+                        <CheckBox
+                          label={val}
+                          name="choice"
+                          key={idx}
+                          defaultChecked={(
+                            data.answers!.data![index] as {
+                              points: number
+                              answer: Array<string>
                             }
-                        >
-                            {moment(date).format("ddd DD MMMM, h:mm A")}
-                        </p>
-                    </div>
-                </div>
-                <div>
-                    {isComparatorOpen ? (
-                        // TODO: Comparator UI
-                        <div>
-                            <div className="grid grid-cols-3 items-end px-4 w-full">
-                                <div>
-                                    <button
-                                        type="button"
-                                        className="btn-primary w-fit"
-                                        onClick={() => setComparatorOpen(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                                <div className="text-center">
-                                    <p>Instruction</p>
-                                    <p className="prose">
-                                        {
-                                            activity.questions[comparatorIndex]
-                                                .instruction
-                                        }
-                                    </p>
-                                </div>
-                                <div className="flex justify-end">
-                                    <button
-                                        type="button"
-                                        className="btn-primary w-fit"
-                                    >
-                                        Done
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 mt-4 px-2">
-                                <div className="flex flex-col gap-2">
-                                    <span className="text-md select-none">
-                                        Set Left Image
-                                    </span>
-                                    <div className="flex flex-col gap-2 w-full px-4">
-                                        <div>
-                                            <span className="text-left text-sm font-medium mr-2 mb-1">
-                                                Zoom
-                                            </span>
-                                            <div className="px-4">
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <ZoomInIcon className="icon-sm" />
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <ZoomOutIcon className="icon-sm" />
-                                                </button>
-
-                                                <button type="button">
-                                                    Reset
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <span className="text-left text-sm font-medium mr-2 mb-1">
-                                                Adjust
-                                            </span>
-                                            <div className="px-4">
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <ArrowUpIcon className="icon-sm" />
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <ArrowDownIcon className="icon-sm" />
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <ArrowLeftIcon className="icon-sm" />
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <ArrowRightIcon className="icon-sm" />
-                                                </button>
-
-                                                <button type="button">
-                                                    Reset
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <span className="text-left text-sm font-medium mr-2 mb-1">
-                                                Filter
-                                            </span>
-                                            <div className="px-4">
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <div className="w-4 h-4 rounded-full bg-yellow-200"></div>
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <div className="w-4 h-4 rounded-full bg-slate-500"></div>
-                                                </button>
-
-                                                <button type="button">
-                                                    Reset
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-span-2">
-                                    {/* TODO: Comparator Main UI */}
-                                    <div className="border border-cyan-300 rounded bg-slate-200 overflow-hidden mb-4">
-                                        <ReactCompareSlider
-                                            itemOne={
-                                                <ReactCompareSliderImage
-                                                    src={
-                                                        (
-                                                            data.answers[
-                                                                comparatorIndex
-                                                            ] as Comparator
-                                                        ).current.left
-                                                    }
-                                                    style={{
-                                                        position: "relative",
-                                                        ...(
-                                                            data.answers[
-                                                                comparatorIndex
-                                                            ] as Comparator
-                                                        ).styles.left,
-                                                    }}
-                                                />
-                                            }
-                                            itemTwo={
-                                                <ReactCompareSliderImage
-                                                    src={
-                                                        (
-                                                            data.answers[
-                                                                comparatorIndex
-                                                            ] as Comparator
-                                                        ).current.right
-                                                    }
-                                                    style={{
-                                                        position: "relative",
-                                                        ...(
-                                                            data.answers[
-                                                                comparatorIndex
-                                                            ] as Comparator
-                                                        ).styles.right,
-                                                    }}
-                                                />
-                                            }
-                                            handle={
-                                                <ReactCompareSliderHandle
-                                                    buttonStyle={{
-                                                        display: "none",
-                                                    }}
-                                                    linesStyle={{
-                                                        height: "100%",
-                                                        width: 3,
-                                                    }}
-                                                />
-                                            }
-                                            position={
-                                                (
-                                                    data.answers[
-                                                        comparatorIndex
-                                                    ] as Comparator
-                                                ).position
-                                            }
-                                            onlyHandleDraggable={true}
-                                            onPositionChange={(position) => {
-                                                const nAnswers = data.answers;
-                                                nAnswers[comparatorIndex] = {
-                                                    ...(nAnswers[
-                                                        comparatorIndex
-                                                    ] as Comparator),
-                                                    position: position,
-                                                };
-
-                                                setData({ answers: nAnswers });
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex justify-end">
-                                    <div className="flex flex-col gap-2">
-                                        <span className="text-md select-none">
-                                            Set Right Image
-                                        </span>
-                                        <div className="flex flex-col gap-2 w-full px-4">
-                                            <div className="flex justify-end">
-                                                <div>
-                                                    <span className="text-left text-sm font-medium mr-2 mb-1">
-                                                        Zoom
-                                                    </span>
-                                                    <div className="px-4">
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <ZoomInIcon className="icon-sm" />
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <ZoomOutIcon className="icon-sm" />
-                                                        </button>
-
-                                                        <button type="button">
-                                                            Reset
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex justify-end">
-                                                <div>
-                                                    <span className="text-left text-sm font-medium mr-2 mb-1">
-                                                        Adjust
-                                                    </span>
-                                                    <div className="px-4">
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <ArrowUpIcon className="icon-sm" />
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <ArrowDownIcon className="icon-sm" />
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <ArrowLeftIcon className="icon-sm" />
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <ArrowRightIcon className="icon-sm" />
-                                                        </button>
-
-                                                        <button type="button">
-                                                            Reset
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex justify-end">
-                                                <div>
-                                                    <span className="text-left text-sm font-medium mr-2 mb-1">
-                                                        Filter
-                                                    </span>
-                                                    <div className="px-4">
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <div className="w-4 h-4 rounded-full bg-yellow-200"></div>
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                                                        </button>
-
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <div className="w-4 h-4 rounded-full bg-slate-500"></div>
-                                                        </button>
-
-                                                        <button type="button">
-                                                            Reset
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div>
-                            <form className="w-full md:w-5/12 mx-auto pb-32 md:pb-16">
-                                {activity.questions.map((_, index) => (
-                                    <fieldset className="card mb-4" key={index}>
-                                        <legend className="card-legend capitalize flex items-end justify-between">
-                                            <span>
-                                                {index + 1}.{" "}
-                                                {activity.questions[index].type}
-                                            </span>
-
-                                            {activity.questions[index].points >
-                                                0 && (
-                                                <span className="text-sm">
-                                                    {
-                                                        activity.questions[
-                                                            index
-                                                        ].points
-                                                    }{" "}
-                                                    pts
-                                                </span>
-                                            )}
-                                        </legend>
-                                        <div className="card-legend-body py-2">
-                                            {renderQuestion(index)}
-                                        </div>
-                                    </fieldset>
-                                ))}
-                            </form>
-                        </div>
-                    )}
-                </div>
+                          ).answer.includes(val)}
+                          onChange={(event) => handleInputChange(event, val)}
+                        />
+                      ))}
+                    </>
+                  ) : (
+                    <RadioGroup
+                      name={'choice-' + index}
+                      value={
+                        (
+                          data.answers!.data![index] as {
+                            points: number
+                            answer: string
+                          }
+                        ).answer
+                      }
+                      values={choice_data}
+                      onChange={handleInputChange}
+                    />
+                  )}
+                </>
+              ) : (
+                <TextInput
+                  name="choice-text"
+                  isFocused={index == 0}
+                  value={
+                    (
+                      data.answers!.data![index] as {
+                        points: number
+                        answer: string
+                      }
+                    ).answer
+                  }
+                  onChange={handleInputChange}
+                  noLabel
+                />
+              )}
             </div>
-        </Class>
-    );
-};
+          </div>
+        )
+      }
+      case 'essay':
+        return (
+          <div>
+            <div className="prose">{instruction}</div>
+          </div>
+        )
 
-export default ActivityAnswer;
+      case 'comparator':
+        return (
+          <div>
+            <div className="prose">{instruction}</div>
+            <div className="mt-4 px-4">
+              <button
+                type="button"
+                className="w-full btn-primary"
+                onClick={() => {
+                  console.log('Data: ' + answers)
+                  dispatch({
+                    type: 'CHANGE_ANSWER',
+                    payload: {
+                      id: data.answers.id,
+                      data: data.answers.data,
+                    },
+                  })
+
+                  Inertia.visit(
+                    `/class/${id}/activity/${activity_id}/comparator/${index}`,
+                    {
+                      preserveState: true,
+                    }
+                  )
+                }}
+              >
+                Open Comparator
+              </button>
+            </div>
+          </div>
+        )
+      default:
+        return <div className="text-sm text-red-500">Invalid item!</div>
+    }
+  }
+
+  console.log(errors)
+
+  return (
+    <Class id={id} mode={3} role="student" sidebar={sidebar}>
+      <form
+        className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
+        onSubmit={(event) => {
+          event.preventDefault()
+          post(`/class/${id}/activity/${activity_id}`)
+        }}
+      >
+        <div className="text-center my-4">
+          <div className="text-xl">{activity.title}</div>
+          <div className={'text-sm ' + (isLate && 'text-red-500')}>
+            Due {moment(date).format('ddd DD MMMM, h:mm A')}
+          </div>
+        </div>
+        <div className="text-right mb-2">Total points: {total_points}</div>
+        <div>
+          {activity.questions.map((_, index) => (
+            <fieldset key={index} className="card mb-4">
+              <legend className="card-legend capitalize flex justify-between items-end">
+                <span>
+                  {index + 1}. {activity.questions[index].type}
+                </span>
+                {activity.questions[index].points > 0 && (
+                  <span className="text-sm">
+                    {activity.questions[index].points}{' '}
+                    {activity.questions[index].points > 1 ? (
+                      <>Points</>
+                    ) : (
+                      <>Point</>
+                    )}
+                  </span>
+                )}
+              </legend>
+              <div className="card-legend-body py-2">
+                {renderQuestionItem(index)}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+        {Object.keys(error_bag as Object).length >= 1 && (
+          <div className="border border-red-500 rounded-md w-full flex justify-center mb-4 py-8">
+            <Error
+              value={Object.keys(error_bag).at(0) ?? ''}
+              message="Please check your answers"
+            />
+          </div>
+        )}
+        <div className="flex justify-center mt-16">
+          <button
+            type="submit"
+            className="btn-primary w-fit"
+            disabled={processing}
+          >
+            Submit
+          </button>
+        </div>
+      </form>
+    </Class>
+  )
+}
+
+export default ActivityAnswer

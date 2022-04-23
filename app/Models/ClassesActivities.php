@@ -25,4 +25,9 @@ class ClassesActivities extends Model
     {
         return $this->belongsTo(Classes::class, 'classes_id');
     }
+
+    public function activities()
+    {
+        return $this->hasMany(ActivitiesAnswer::class, 'activities_id');
+    }
 }

@@ -89,4 +89,9 @@ class User extends Authenticatable
         return $this->hasMany(Classes::class, 'instructor_id');
     }
 
+    public function activities()
+    {
+        return $this->hasMany(ActivitiesAnswer::class, 'student_id');
+    }
+
 }
