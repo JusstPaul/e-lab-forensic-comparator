@@ -48,6 +48,13 @@
       0 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     ),
   ),
+  'reedware/laravel-relation-joins' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Reedware\\LaravelRelationJoins\\LaravelRelationJoinServiceProvider',
+    ),
+  ),
   'spatie/laravel-ignition' => 
   array (
     'providers' => 

@@ -20,6 +20,7 @@ class ClassesStudents extends Model
 
     public function students()
     {
-        return $this->hasMany(User::class, 'student_id');
+        return $this->hasMany(User::class, 'id');
     }
+
 }

@@ -11,15 +11,18 @@ class ActivitiesAnswer extends Model
 
     protected $fillable = [
         'answers',
+        'is_checked',
+        'score',
         'activity_id',
         'student_id',
     ];
 
     protected $casts = [
         'answers' => 'array',
+        'is_checked' => 'boolean',
     ];
 
-    public function classes()
+    public function activities()
     {
         return $this->belongsTo(ClassesActivities::class, 'activity_id');
     }

@@ -24,7 +24,7 @@ class ClassesActivitiesController extends Controller
             'questions.*.choices' => 'nullable',
             'questions.*.instruction' => 'required',
             'questions.*.points' => 'required|numeric',
-            'questions.*.files' => 'max:6|min:2',
+            'questions.*.files' => 'required_if:questions.*.type,comparator|nullable|max:6|min:2',
             'questions.*.files.*' => 'image',
         ]);
 

@@ -16,6 +16,8 @@ return new class extends Migration
         Schema::create('activities_answers', function (Blueprint $table) {
             $table->id();
             $table->json('answers');
+            $table->boolean('is_checked')->default(false);
+            $table->integer('score')->default(0);
             $table->bigInteger('activity_id');
             $table->foreign('activity_id')
                 ->references('id')

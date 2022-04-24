@@ -6,6 +6,7 @@ use App\Http\Controllers\ClassesController;
 use App\Http\Controllers\ClassesStudentsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use App\Models\ActivitiesAnswer;
 use App\Models\Classes;
 use App\Models\ClassesActivities;
 use App\Models\ClassesStudents;
@@ -125,6 +126,48 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
         'role' => 'instructor',
         'id' => $class_id,
     ]));
+
+    Route::get('/class/{class_id}/activity/{answer_id}/check',
+        function ($class_id, $answer_id) {
+            return Inertia::render('Auth/Instructor/ClassCheckAnswer', [
+                'id' => $class_id,
+                'answer_id' => $answer_id,
+                'answer' => fn() => ActivitiesAnswer::find(Hashids::decode($answer_id))
+                    ->map(function ($value) {
+                        $student = User::where('users.id', $value->student_id)
+                            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                            ->first();
+
+                        $activity = ClassesActivities::where('id', $value->activity_id)->first();
+                        $total = 0;
+
+                        foreach ($activity->questions as $question) {
+                            $total += $question['points'];
+                        }
+
+                        return [
+                            'activity' => [
+                                'id' => Hashids::encode($value->activity_id),
+                                'title' => $activity->title,
+                                'type' => $activity->type,
+                                'time_end' => $activity->time_end,
+                                'date_end' => $activity->date_end,
+                                'questions' => $activity->questions,
+                                'total' => $total,
+                            ],
+                            'answers' => $value->answers,
+                            'is_checked' => $value->is_checked,
+                            'score' => $value->score,
+                            'student' => [
+                                'id' => Hashids::encode($value->student_id),
+                                'username' => $student->username,
+                                'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
+                            ],
+                        ];
+                    })
+                    ->first(),
+            ]);
+        })->name('class.activity.check');
 
     // POST
     Route::post('/class/create', [ClassesController::class, 'store']);
@@ -306,6 +349,138 @@ Route::group(['middleware' => ['auth', 'role:instructor|student']], function () 
             ]);
         }
     })->name('class.overview');
+
+    Route::get('/class/{class_id}/overview/progress/{student_id?}/{activity_id?}',
+        function ($class_id, $student_id = null, $activity_id = null) {
+            $user = auth()->user();
+            $profile = $user->profile;
+
+            if ($profile == null) {
+                return redirect()->route('user.profile.edit');
+            }
+
+            $role = $user->roles->first()->name;
+
+            if ($role == 'student') {
+                $classes = Classes::find(Hashids::decode($class_id)[0])->get()->first();
+                $check_id = $classes->students()->get()->where('student_id', $user->id)->first();
+
+                $done_activities = auth()->user()->activities()->get();
+
+                $activities = $classes->activities()->get()
+                    ->filter(fn($value) => $done_activities->where('activity_id', $value->id)->first() == null);
+
+                $assignments = $activities->where('type', 'assignment')->map(fn($value) => [
+                    'display' => $value->title,
+                    'link' => '/' . 'class/' . $class_id . '/' . 'activity/' . Hashids::encode($value->id),
+                ]);
+
+                $exams = $activities->where('type', 'exam')->map(fn($value) => [
+                    'display' => $value->title,
+                    'link' => '/' . 'class/' . $class_id . '/' . 'activity/' . Hashids::encode($value->id),
+                ]);
+
+                if ($check_id->classes->id == $classes->id) {
+                    return Inertia::render('Auth/InstructorAndStudent/ClassViewProgress', [
+                        'id' => $class_id,
+                        'role' => 'student',
+                        'sidebar' => [
+                            [
+                                'title' => 'Exams',
+                                'elements' => $exams,
+                            ],
+                            [
+                                'title' => 'Assignments',
+                                'elements' => $assignments,
+                            ],
+                        ],
+                    ]);
+                }
+
+                return redirect('/');
+            }
+
+            return Inertia::render('Auth/InstructorAndStudent/ClassViewProgress', [
+                'id' => $class_id,
+                'role' => 'instructor',
+                'sidebar' => [],
+                'students' => fn() => Classes::find(Hashids::decode($class_id)[0])
+                    ->students()
+                    ->get()
+                    ->map(function ($classes) {
+                        $student = User::where('users.id', $classes->student_id)
+                            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                            ->first();
+
+                        return [
+                            'id' => Hashids::encode($student->user_id),
+                            'username' => $student->username,
+                            'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
+                        ];
+                    }),
+                'current_student' => function () use ($student_id, $class_id) {
+                    if ($student_id == null) {
+                        return null;
+                    }
+
+                    $activities = ClassesActivities::where('classes_id', Hashids::decode($class_id)[0])->get();
+                    $student = User::where('users.id', Hashids::decode($student_id)[0])
+                        ->join('profiles', 'profiles.user_id', 'users.id')
+                        ->first();
+
+                    $activities_status = [];
+                    foreach ($activities as $activity) {
+                        $answer = ActivitiesAnswer::where('student_id', Hashids::decode($student_id)[0])
+                            ->where('activity_id', $activity->id)
+                            ->first();
+                        $date = new DateTime($activity->date_end . ' ' . $activity->time_end);
+
+                        if ($answer == null) {
+                            array_push($activities_status, [
+                                'id' => null,
+                                'type' => $activity->type,
+                                'title' => $activity->title,
+                                'score' => 'No submits',
+                                'is_late' => new DateTime('now') > $date,
+                            ]);
+                        } else {
+                            $total = 0;
+                            foreach ($answer->answers['data'] as $data) {
+                                if ($data != null) {
+                                    $total += $data['points'];
+                                }
+                            }
+
+                            array_push($activities_status, [
+                                'id' => Hashids::encode($answer->id),
+                                'type' => $activity->type,
+                                'title' => $activity->title,
+                                'score' => $answer->is_checked ? $answer->score . '/' . $total : 'Unchecked',
+                                'is_late' => new DateTime($answer->updated_at) > $date,
+                            ]);
+                        }
+                    }
+
+                    $exams = array_filter($activities_status, function ($activity) {
+                        return $activity['type'] == 'exam';
+                    });
+                    $assignments = array_filter($activities_status, function ($activity) {
+                        return $activity['type'] == 'assignment';
+                    });
+
+                    return [
+                        'student' => [
+                            'id' => $student_id,
+                            'username' => $student->username,
+                            'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
+                        ],
+                        'exams' => $exams,
+                        'assignments' => $assignments,
+                    ];
+                },
+            ]);
+
+        })->name('class.overview.progress');
 
     Route::get('/profile/edit', function () {
         $user = auth()->user();
