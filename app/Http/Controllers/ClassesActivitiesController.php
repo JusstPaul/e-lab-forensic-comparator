@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivitiesAnswer;
 use App\Models\Classes;
 use App\Models\ClassesActivities;
+use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 use Vinkla\Hashids\Facades\Hashids;
 
 class ClassesActivitiesController extends Controller
@@ -17,7 +20,7 @@ class ClassesActivitiesController extends Controller
         $request->validate([
             'title' => 'required|max:255',
             'type' => 'required|in:assignment,exam',
-            'date_end' => 'required_if:type,assignment|date|after:today',
+            'date_end' => 'nullable|required_unless:type,==,exam|date|nullable|after:today',
             'time_end' => 'required|date_format:H:i',
             'questions' => 'required',
             'questions.*.type' => 'required|in:directions,question,comparator,essay',
@@ -31,12 +34,8 @@ class ClassesActivitiesController extends Controller
         $questions = array_map(function ($value) {
             if ($value['files'] != null) {
                 $files = array_map(function ($file) {
-                    $hashname = md5_file($file->path()) . '-' . strval(time()) . '.' . $file->extension();
-                    $name = 'class/instructor/activities/' . $hashname;
-
-                    Storage::putFileAs('uploads', $file, $name);
-
-                    return $name;
+                    return Storage::disk('s3')
+                        ->put('class/instructor/activities', new File($file));
                 }, $value['files']);
 
                 $value['files'] = $files;
@@ -56,6 +55,28 @@ class ClassesActivitiesController extends Controller
 
         return redirect()->route('class.overview', [
             'class_id' => $class_id,
+        ]);
+    }
+
+    public function store_check(Request $request, $class_id, $activity_id)
+    {
+        $answer = ActivitiesAnswer::where('id', Hashids::decode($activity_id))->first();
+        $answer->update([
+            'answers' => $request->answers,
+            'is_checked' => $request->is_checked,
+            'score' => $request->score,
+        ]);
+
+        return redirect()->route('class.overview.progress', [
+            'class_id' => $class_id,
+        ]);
+    }
+
+    public function show($class_id)
+    {
+        return Inertia::render('Auth/Instructor/ClassCreateActivity', [
+            'role' => 'instructor',
+            'id' => $class_id,
         ]);
     }
 }

@@ -1,6 +1,6 @@
-import { FC, useState, useCallback } from 'react'
+import { FC, useState, useCallback, useEffect } from 'react'
 import { Inertia } from '@inertiajs/inertia'
-import { Link } from '@inertiajs/inertia-react'
+import { Link, usePage } from '@inertiajs/inertia-react'
 import { useSelector, useDispatch } from 'react-redux'
 import {
   ReactCompareSlider,
@@ -17,15 +17,13 @@ import {
 } from '@heroicons/react/solid'
 import ImageViewer from 'react-simple-image-viewer'
 import { cloneDeep } from 'lodash'
-import {
-  AnswerStates,
-  AnswerState,
-  ComparatorState,
-} from '@/Lib/answersReducer'
+import { AnswerStates, ComparatorState } from '@/Lib/answersReducer'
 import { SideBarSection } from '@/Layouts/Auth'
 import Class from '@/Layouts/Class'
 import RadioGroup from '@/Components/RadioGroup'
 import CheckBox from '@/Components/CheckBox'
+import s3Client, { S3PageProps, getFileUrl } from '@/Lib/aws'
+import Editor from '@/Components/Editor'
 
 type Props = {
   id: string
@@ -49,11 +47,17 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, sidebar }) => {
     answer!.data![answer_index].answer as ComparatorState
   )
 
+  const { aws } = usePage().props
+  const _aws = aws as S3PageProps
+  const client = s3Client(_aws)
+
   const [imageClickMode, setImageClickMode] = useState<'set' | 'preview'>('set')
   const [currentImage, setCurrentImage] = useState(0)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
 
-  const images = comparator.images.map((value) => `/uploads/${value}`)
+  const images = comparator.images.map((value) =>
+    getFileUrl(client, _aws.bucket, value)
+  )
 
   const openImageViewer = useCallback((index: number) => {
     setCurrentImage(index)
@@ -471,15 +475,21 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, sidebar }) => {
             <ReactCompareSlider
               itemOne={
                 <ReactCompareSliderImage
-                  src={'/uploads/' + comparator.images[comparator.current.left]}
+                  src={getFileUrl(
+                    client,
+                    _aws.bucket,
+                    comparator.images[comparator.current.left]
+                  )}
                   style={{ position: 'relative', ...comparator.styles.left }}
                 />
               }
               itemTwo={
                 <ReactCompareSliderImage
-                  src={
-                    '/uploads/' + comparator.images[comparator.current.right]
-                  }
+                  src={getFileUrl(
+                    client,
+                    _aws.bucket,
+                    comparator.images[comparator.current.right]
+                  )}
                   style={{ position: 'relative', ...comparator.styles.right }}
                 />
               }
@@ -502,12 +512,12 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, sidebar }) => {
               <img
                 key={index}
                 className={
-                  'w-16 h-16 rounded-md cursor-pointer ' +
+                  'w-16 h-16 rounded-md cursor-pointer bg-alt ' +
                   ((index == comparator.current.left ||
                     index == comparator.current.right) &&
                     'border-2 border-primary')
                 }
-                src={'/uploads/' + value}
+                src={getFileUrl(client, _aws.bucket, value)}
                 onClick={() => {
                   switch (imageClickMode) {
                     case 'preview':
@@ -535,6 +545,14 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, sidebar }) => {
                 }}
               />
             ))}
+          </div>
+          <div>
+            <Editor
+              setContents={comparator.essay}
+              onChange={(content) => {
+                setComparator({ ...comparator, essay: content })
+              }}
+            />
           </div>
         </div>
 

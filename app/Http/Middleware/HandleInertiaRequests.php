@@ -37,7 +37,12 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         return array_merge(parent::share($request), [
-            //
+            'aws' => [
+                'access_key_id' => env('AWS_ACCESS_KEY_ID'),
+                'secret_access_key' => env('AWS_SECRET_ACCESS_KEY'),
+                'default_region' => env('AWS_DEFAULT_REGION'),
+                'bucket' => env('AWS_BUCKET'),
+            ],
         ]);
     }
 }

@@ -85,6 +85,10 @@
         @apply bg-primary px-4 py-1 rounded-md disabled:opacity-75;
     }
 
+    .btn-critical {
+        @apply bg-red-500 px-4 py-1 rounded-md disabled:opacity-75;
+    }
+
     .btn-alt {
         @apply bg-alt px-4 py-1 rounded-md disabled:opacity-75;
     }

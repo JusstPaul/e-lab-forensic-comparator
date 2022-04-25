@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Session;
+use Vinkla\Hashids\Facades\Hashids;
 
 class UserController extends Controller
 {
@@ -64,6 +66,56 @@ class UserController extends Controller
     public function show(User $user)
     {
         //
+    }
+
+    public function show_admin()
+    {
+        return Inertia::render('Auth/Admin/Dashboard', [
+            'role' => 'admin',
+            'users' => fn() => User::with('roles')
+                ->get()
+                ->except(auth()->id())
+                ->map(fn($user) => [
+                    'id' => Hashids::encode($user->id),
+                    'username' => $user->username,
+                    'role' => $user->roles->first()->name,
+                ]),
+        ]);
+    }
+
+    public function show_create()
+    {
+        return Inertia::render('Auth/Admin/CreateUser', [
+            'role' => 'admin',
+        ]);
+    }
+
+    public function show_instructor()
+    {
+        $user = auth()->user();
+        $profile = $user->profile;
+
+        if ($user->profile == null) {
+            return redirect()->route('user.profile.edit');
+        }
+
+        return Inertia::render('Auth/Instructor/Dashboard', [
+            'role' => 'instructor',
+            'classes' => fn() => $user->classes->map(fn($value) => [
+                'id' => Hashids::encode($value->id),
+                'code' => $value->code,
+                'day' => $value->day,
+                'room' => $value->room,
+                'time_start' => $value->time_start,
+                'time_end' => $value->time_end,
+            ]),
+            'name' => $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.',
+        ]);
+    }
+
+    public function show_student_unregistered()
+    {
+        return Inertia::render('Auth/Student/NoClass');
     }
 
     /**
@@ -134,8 +186,9 @@ class UserController extends Controller
      * @param  \App\Models\User  $user
      * @return \Illuminate\Http\Response
      */
-    public function destroy(User $user)
+    public function destroy($user_id)
     {
-        //
+        User::destroy(Hashids::decode($user_id));
+        return redirect()->route('admin.dashboard');
     }
 }

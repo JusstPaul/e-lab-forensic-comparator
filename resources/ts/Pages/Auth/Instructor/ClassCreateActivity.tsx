@@ -56,7 +56,7 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
   const { data, setData, post, processing, errors } = useForm<{
     title: string
     type: Activity
-    date_end: string
+    date_end: string | undefined
     time_end: string
     questions: Questions
   }>('Class:' + id + '/CreateActivity', {
@@ -77,7 +77,15 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
         setData({ ...data, title: value })
         break
       case 'type':
-        setData({ ...data, type: value as Activity })
+        if (value == 'exam') {
+          setData({ ...data, type: 'exam', date_end: undefined })
+        } else {
+          setData({
+            ...data,
+            type: 'assignment',
+            date_end: new Date().toISOString().split('T')[0],
+          })
+        }
         break
       case 'date_end':
         setData({ ...data, date_end: value })
@@ -371,6 +379,8 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
     }
   }
 
+  console.log(error_bag)
+
   return (
     <Class role={role} id={id} mode={3}>
       <div className="container-lg p-4 md:p-8">
@@ -411,7 +421,7 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
                         label="Date End (mm/dd/yyyy)"
                         type="date"
                         name="date_end"
-                        value={data.date_end}
+                        value={data.date_end as string}
                         error={{
                           value: errors.date_end,
                         }}

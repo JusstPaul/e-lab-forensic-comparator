@@ -73,6 +73,13 @@
       0 => 'Spatie\\Permission\\PermissionServiceProvider',
     ),
   ),
+  'tightenco/ziggy' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Tightenco\\Ziggy\\ZiggyServiceProvider',
+    ),
+  ),
   'vinkla/hashids' => 
   array (
     'aliases' => 

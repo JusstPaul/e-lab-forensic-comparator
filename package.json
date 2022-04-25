@@ -36,15 +36,19 @@
         "@reduxjs/toolkit": "^1.8.1",
         "@types/lodash.clonedeep": "^4.5.7",
         "@types/react-redux": "^7.1.24",
+        "@types/ziggy-js": "^1.3.1",
+        "aws-sdk": "^2.1120.0",
         "lodash.clonedeep": "^4.5.0",
         "moment": "^2.29.3",
         "react": "^18.0.0",
         "react-compare-slider": "^2.2.0",
         "react-dom": "^18.0.0",
+        "react-dropdown": "^1.9.2",
         "react-redux": "^8.0.1",
         "react-simple-image-viewer": "^1.2.1",
         "react-tooltip": "^4.2.21",
         "suneditor": "^2.42.0",
-        "suneditor-react": "^3.4.0"
+        "suneditor-react": "^3.4.0",
+        "ziggy-js": "^1.4.6"
     }
 }

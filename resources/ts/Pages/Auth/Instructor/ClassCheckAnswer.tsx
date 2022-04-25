@@ -1,11 +1,18 @@
 import { FC, useState } from 'react'
-import { useForm } from '@inertiajs/inertia-react'
+import { useForm, usePage } from '@inertiajs/inertia-react'
 import { SideBarSection } from '@/Layouts/Auth'
 import { ComparatorState } from '@/Lib/answersReducer'
 import { Questions } from './ClassCreateActivity'
 import Class from '@/Layouts/Class'
 import moment from 'moment'
 import CheckBox from '@/Components/CheckBox'
+import { cloneDeep } from 'lodash'
+import {
+  ReactCompareSlider,
+  ReactCompareSliderHandle,
+  ReactCompareSliderImage,
+} from 'react-compare-slider'
+import s3Client, { S3PageProps, getFileUrl } from '@/Lib/aws'
 
 type Answer = {
   is_checked: boolean
@@ -46,11 +53,18 @@ type Props = {
 
 const ClassCheckAnswer: FC<Props> = ({ id, sidebar, answer_id, answer }) => {
   const date = answer.activity.date_end + ' ' + answer.activity.time_end
-  const [score, setScore] = useState<number>(0)
+  const [score, setScore] = useState<number>(answer.score)
+  const [isComparatorOpen, setIsComparatorOpen] = useState(false)
+  const [currentComparator, setCurrentComparator] = useState<ComparatorState>()
+
+  const { aws } = usePage().props
+  const _aws = aws as S3PageProps
+  const client = s3Client(_aws)
 
   const { data, setData, post, processing, errors } = useForm({
     answers: answer.answers,
     is_checked: answer.is_checked,
+    score: 0,
   })
 
   const renderQuestionItem = (index: number) => {
@@ -95,7 +109,18 @@ const ClassCheckAnswer: FC<Props> = ({ id, sidebar, answer_id, answer }) => {
             </div>
             <div>
               <div className="mt-4 px-4">
-                <button type="button" className="w-full btn-primary">
+                <button
+                  type="button"
+                  className="w-full btn-primary"
+                  onClick={() => {
+                    setIsComparatorOpen(true)
+                    setCurrentComparator(
+                      cloneDeep(
+                        answer.answers.data[index]?.answer as ComparatorState
+                      )
+                    )
+                  }}
+                >
                   Show
                 </button>
               </div>
@@ -131,7 +156,11 @@ const ClassCheckAnswer: FC<Props> = ({ id, sidebar, answer_id, answer }) => {
           <form
             onSubmit={(event) => {
               event.preventDefault()
+              data.is_checked = true
+              data.score = score
+              post(`/class/${id}/activity/${answer.activity.id}/check`)
             }}
+            className={isComparatorOpen ? 'hidden' : ''}
           >
             {answer.activity.questions.map((value, index) => (
               <fieldset key={index} className="card mb-4">
@@ -186,7 +215,84 @@ const ClassCheckAnswer: FC<Props> = ({ id, sidebar, answer_id, answer }) => {
                 </div>
               </fieldset>
             ))}
+            <div className="p-4">
+              <button
+                type="submit"
+                className="btn-primary w-full"
+                disabled={processing}
+              >
+                Submit
+              </button>
+            </div>
           </form>
+          <div className={isComparatorOpen ? '' : 'hidden'}>
+            {currentComparator ? (
+              <div>
+                <ReactCompareSlider
+                  itemOne={
+                    <ReactCompareSliderImage
+                      src={getFileUrl(
+                        client,
+                        _aws.bucket,
+                        currentComparator!.images[
+                          currentComparator!.current.left
+                        ]
+                      )}
+                    />
+                  }
+                  itemTwo={
+                    <ReactCompareSliderImage
+                      src={getFileUrl(
+                        client,
+                        _aws.bucket,
+                        currentComparator!.images[
+                          currentComparator!.current.right
+                        ]
+                      )}
+                      style={{
+                        position: 'relative',
+                        ...currentComparator!.styles.right,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  }
+                  position={currentComparator!.position}
+                  handle={
+                    <ReactCompareSliderHandle
+                      buttonStyle={{ display: 'none', pointerEvents: 'none' }}
+                      linesStyle={{
+                        height: '100%',
+                        width: 3,
+                        pointerEvents: 'none',
+                      }}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  }
+                  style={{ pointerEvents: 'none' }}
+                />
+                <div className="flex justify-center">
+                  <div className="prose">
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: currentComparator!.essay,
+                      }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <button
+                    type="button"
+                    className="btn-primary w-full"
+                    onClick={() => setIsComparatorOpen(false)}
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <></>
+            )}
+          </div>
         </div>
       </div>
     </Class>

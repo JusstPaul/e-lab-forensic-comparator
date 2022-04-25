@@ -12,6 +12,7 @@ import moment from 'moment'
 import { useSelector, useDispatch } from 'react-redux'
 import { AnswerStates } from '@/Lib/answersReducer'
 import { cloneDeep } from 'lodash'
+import Editor from '@/Components/Editor'
 
 type Props = {
   id: string
@@ -39,7 +40,7 @@ const ActivityAnswer: FC<Props> = ({
   const date = activity.date_end + ' ' + activity.time_end
   const isLate = new Date(date).getTime() <= new Date().getTime()
 
-  const { errors: error_bag } = usePage().props
+  const { errors: error_bag, aws } = usePage().props
 
   const answers = useSelector<AnswerStates, AnswerStates['answers']>(
     (state) => state.answers
@@ -239,6 +240,27 @@ const ActivityAnswer: FC<Props> = ({
         return (
           <div>
             <div className="prose">{instruction}</div>
+            <Editor
+              name="essay-text"
+              autoFocus={index == 0}
+              setContents={
+                (
+                  data.answers!.data![index] as {
+                    points: number
+                    answer: string
+                  }
+                ).answer
+              }
+              onChange={(content) => {
+                const nAnswers = data.answers!
+                nAnswers.data![index]!.answer = content
+
+                setData({
+                  ...data,
+                  answers: nAnswers,
+                })
+              }}
+            />
           </div>
         )
 
@@ -277,8 +299,6 @@ const ActivityAnswer: FC<Props> = ({
         return <div className="text-sm text-red-500">Invalid item!</div>
     }
   }
-
-  console.log(errors)
 
   return (
     <Class id={id} mode={3} role="student" sidebar={sidebar}>

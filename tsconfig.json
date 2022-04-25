@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "allowJs": true,
     "target": "es6",
     "lib": [
       "dom",
@@ -24,6 +25,9 @@
     "paths": {
         "@/*": [
             "resources/ts/*"
+        ],
+        "ziggy": [
+            "vendor/tightenco/ziggy/dist"
         ]
     }
   },
