@@ -34,11 +34,10 @@ export type Question = {
 export type Questions = Array<Question>
 
 type Props = {
-  role: string
   id: string
 }
 
-const ClassCreateActivity: FC<Props> = ({ role, id }) => {
+const ClassCreateActivity: FC<Props> = ({ id }) => {
   const [images, setImages] = useState<Array<string>>([])
   const [currentImage, setCurrentImage] = useState(0)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
@@ -247,7 +246,8 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
                     >
                       <button
                         type="button"
-                        className="text-red-500 flex-grow-0 w-fit h-auto"
+                        className="text-red-500 flex-grow-0 w-fit h-auto outline-none"
+                        tabIndex={-1}
                         onClick={() => {
                           const nQuestions = data.questions
                           nQuestions[index].choices!.data.splice(idx, 1)
@@ -372,7 +372,7 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
   }
 
   return (
-    <Class role={role} id={id} mode={3}>
+    <Class id={id} mode={3}>
       <div className="container-lg p-4 md:p-8">
         <p className="font-light text-lg w-fit mx-auto mb-4">Create Activity</p>
         <div className="">
@@ -380,7 +380,7 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
             className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
             onSubmit={(event) => {
               event.preventDefault()
-              post('/class/' + id + '/activity/create', {
+              post(`/class/${id}/activity/create`, {
                 _method: 'put',
               } as any)
             }}
@@ -536,6 +536,7 @@ const ClassCreateActivity: FC<Props> = ({ role, id }) => {
           onClose={closeImageViewer}
           backgroundStyle={{
             background: 'rgba(0, 0, 0, 0.9)',
+            zIndex: 20,
           }}
         />
       ) : (

@@ -22,7 +22,6 @@ import {
   AnswerState,
   ComparatorState,
 } from '@/Lib/answersReducer'
-import { SideBarSection } from '@/Layouts/Auth'
 import Class from '@/Layouts/Class'
 import RadioGroup from '@/Components/RadioGroup'
 import CheckBox from '@/Components/CheckBox'
@@ -31,10 +30,9 @@ type Props = {
   id: string
   activity_id: string
   answer_index: number
-  sidebar?: Array<SideBarSection>
 }
 
-const Comparator: FC<Props> = ({ id, activity_id, answer_index, sidebar }) => {
+const Comparator: FC<Props> = ({ id, activity_id, answer_index }) => {
   const answers = useSelector<AnswerStates, AnswerStates['answers']>(
     (state) => state.answers
   )
@@ -66,7 +64,7 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, sidebar }) => {
   }, [])
 
   return (
-    <Class id={id} mode={3} role="student" sidebar={sidebar}>
+    <Class id={id} mode={3}>
       <div className="pt-4 pb-2 px-4 border-b border-dark flex justify-between">
         <div>
           <div className="text-xl">{comparator.title}</div>

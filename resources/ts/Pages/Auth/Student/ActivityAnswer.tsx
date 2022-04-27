@@ -1,7 +1,6 @@
 import { ChangeEvent, FC } from 'react'
 import { Inertia } from '@inertiajs/inertia'
 import { useForm, usePage } from '@inertiajs/inertia-react'
-import { SideBarSection } from '@/Layouts/Auth'
 import { Questions, Activity } from '../Instructor/ClassCreateActivity'
 import RadioGroup from '@/Components/RadioGroup'
 import CheckBox from '@/Components/CheckBox'
@@ -12,11 +11,11 @@ import moment from 'moment'
 import { useSelector, useDispatch } from 'react-redux'
 import { AnswerStates } from '@/Lib/answersReducer'
 import { cloneDeep } from 'lodash'
+import Editor from '@/Components/Editor'
 
 type Props = {
   id: string
   activity_id: string
-  sidebar?: Array<SideBarSection>
   activity: {
     id: string
     title: string
@@ -32,7 +31,6 @@ type Props = {
 const ActivityAnswer: FC<Props> = ({
   id,
   activity_id,
-  sidebar,
   activity,
   total_points,
 }) => {
@@ -239,6 +237,27 @@ const ActivityAnswer: FC<Props> = ({
         return (
           <div>
             <div className="prose">{instruction}</div>
+            <Editor
+              name="essay-text"
+              autoFocus={index == 0}
+              setContents={
+                (
+                  data.answers!.data![index] as {
+                    points: number
+                    answer: string
+                  }
+                ).answer
+              }
+              onChange={(content) => {
+                const nAnswers = data.answers!
+                nAnswers.data![index]!.answer = content
+
+                setData({
+                  ...data,
+                  answers: nAnswers,
+                })
+              }}
+            />
           </div>
         )
 
@@ -278,10 +297,8 @@ const ActivityAnswer: FC<Props> = ({
     }
   }
 
-  console.log(errors)
-
   return (
-    <Class id={id} mode={3} role="student" sidebar={sidebar}>
+    <Class id={id} mode={3}>
       <form
         className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
         onSubmit={(event) => {

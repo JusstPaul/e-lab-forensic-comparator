@@ -13,18 +13,12 @@ type Class = {
 }
 
 type Props = {
-  role: string
-  name: string
   classes?: Array<Class>
 }
 
-const Dashboard: FC<Props> = ({ role, classes, name }) => (
-  <Auth role={role}>
+const Dashboard: FC<Props> = ({ classes }) => (
+  <Auth>
     <div className="container-lg p-4 md:p-8">
-      <div className="pb-4 border-b border-dark flex justify-between">
-        <div className="font-semibold">Classes</div>
-        <div>{name}</div>
-      </div>
       <div className="py-4 md:grid grid-cols-4 gap-4">
         {classes ? (
           classes.map((value, index) => (

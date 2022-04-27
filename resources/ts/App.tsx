@@ -5,7 +5,9 @@ import { InertiaProgress } from '@inertiajs/progress'
 import { Provider } from 'react-redux'
 import store from '@/Lib/store'
 
-InertiaProgress.init()
+InertiaProgress.init({
+  showSpinner: true,
+})
 
 createInertiaApp({
   resolve: async (name) => await import(`./Pages/${name}`),

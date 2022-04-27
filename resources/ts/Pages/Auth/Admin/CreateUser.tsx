@@ -4,11 +4,9 @@ import TextInput from '@/Components/TextInput'
 import RadioGroup from '@/Components/RadioGroup'
 import Auth from '@/Layouts/Auth'
 
-type Props = {
-  role: string
-}
+type Props = {}
 
-const CreateUser: FC<Props> = ({ role }) => {
+const CreateUser: FC<Props> = ({}) => {
   const { data, setData, post, processing, errors } = useForm({
     username: '',
     type: 'admin',
@@ -29,7 +27,7 @@ const CreateUser: FC<Props> = ({ role }) => {
   }
 
   return (
-    <Auth role={role}>
+    <Auth>
       <div className="container-lg py-4">
         <div className="font-light text-lg w-fit mx-auto mb-4">Create User</div>
         <form

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ClassesStudents;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Session;
+use Vinkla\Hashids\Facades\Hashids;
 
 class UserController extends Controller
 {
@@ -18,6 +20,29 @@ class UserController extends Controller
      */
     public function index()
     {
+        $user = auth()->user();
+
+        if ($user->hasRole('admin')) {
+            return redirect()->route('admin.dashboard');
+        } else if ($user->hasRole('instructor')) {
+            return redirect()->route('instructor.dashboard');
+        } else {
+            if ($user->profile == null) {
+                return redirect()->route('user.profile.edit');
+            }
+
+            $classes = ClassesStudents::where('student_id', $user->id)
+                ->get()
+                ->first();
+
+            if ($classes == null) {
+                return redirect()->route('class.unregistered');
+            }
+
+            return redirect()->route('class.overview', [
+                'class_id' => Hashids::encode($classes->classes->id),
+            ]);
+        }
         //
     }
 

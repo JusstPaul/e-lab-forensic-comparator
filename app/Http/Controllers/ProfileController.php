@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Profile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Inertia;
 
 class ProfileController extends Controller
 {
@@ -36,6 +37,16 @@ class ProfileController extends Controller
         ]);
 
         return redirect('/');
+    }
+
+    public function index()
+    {
+        $user = auth()->user();
+
+        return Inertia::render('Auth/InstructorAndStudent/EditProfile', [
+            'first' => fn() => $user->profile == null,
+            'profile' => fn() => $user->profile,
+        ]);
 
     }
 }
