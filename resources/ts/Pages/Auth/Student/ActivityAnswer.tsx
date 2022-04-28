@@ -1,4 +1,4 @@
-import { ChangeEvent, FC } from 'react'
+import { ChangeEvent, FC, CSSProperties } from 'react'
 import { Inertia } from '@inertiajs/inertia'
 import { useForm, usePage } from '@inertiajs/inertia-react'
 import { Questions, Activity } from '../Instructor/ClassCreateActivity'
@@ -8,10 +8,52 @@ import TextInput from '@/Components/TextInput'
 import Error from '@/Components/Error'
 import Class from '@/Layouts/Class'
 import moment from 'moment'
-import { useSelector, useDispatch } from 'react-redux'
-import { AnswerStates } from '@/Lib/answersReducer'
 import { cloneDeep } from 'lodash'
 import Editor from '@/Components/Editor'
+
+export type ComparatorState = {
+  title: string
+  date: string
+  instructions: string
+  position: number
+  images: Array<string>
+  styles: {
+    left: CSSProperties
+    right: CSSProperties
+  }
+  scales: {
+    left: number
+    right: number
+  }
+  location: {
+    left: {
+      x: number
+      y: number
+    }
+    right: {
+      x: number
+      y: number
+    }
+  }
+  current: {
+    left: number
+    right: number
+  }
+  select_mode: 'left' | 'right'
+  essay?: string
+}
+
+type AnswerData =
+  | Array<{
+      answer: string | Array<string> | ComparatorState | undefined
+      points: number | undefined
+    }>
+  | undefined
+
+export type AnswerState = {
+  id: string
+  data: AnswerData
+}
 
 type Props = {
   id: string
@@ -26,6 +68,7 @@ type Props = {
     created_at: string
   }
   total_points: number
+  cached_answer?: AnswerState
 }
 
 const ActivityAnswer: FC<Props> = ({
@@ -33,16 +76,12 @@ const ActivityAnswer: FC<Props> = ({
   activity_id,
   activity,
   total_points,
+  cached_answer,
 }) => {
   const date = activity.date_end + ' ' + activity.time_end
   const isLate = new Date(date).getTime() <= new Date().getTime()
 
   const { errors: error_bag } = usePage().props
-
-  const answers = useSelector<AnswerStates, AnswerStates['answers']>(
-    (state) => state.answers
-  )
-  const dispatch = useDispatch()
 
   const initializeAnswers = () => {
     const emptyAnswer = {
@@ -51,7 +90,7 @@ const ActivityAnswer: FC<Props> = ({
         switch (value.type) {
           //  @ts-expect-error
           case 'question':
-            if (value.choices && value.choices.active == 1) {
+            if (value.choices != undefined && value.choices.active == 1) {
               if (value.choices.type == 'radio') {
                 return {
                   points: value.points,
@@ -106,14 +145,55 @@ const ActivityAnswer: FC<Props> = ({
       }),
     }
 
-    const findAnswer = answers.find((value) => value.id == activity_id)
+    if (cached_answer != null) {
+      const nCachedAswer = cached_answer
+      nCachedAswer.data = nCachedAswer.data!.map((value, index) => {
+        switch (activity.questions[index].type) {
+          case 'directions':
+            return value
 
-    if (findAnswer) {
-      return cloneDeep(findAnswer)
+          case 'question':
+            if (value.answer == null) {
+              if (activity.questions[index].choices != undefined) {
+                const { active, type, data } =
+                  activity.questions[index].choices!
+                if (active == 1) {
+                  if (type == 'checkbox') {
+                    return {
+                      ...value,
+                      answer: '',
+                    }
+                  } else if (type == 'radio') {
+                    return {
+                      ...value,
+                      answer: [data[0]],
+                    }
+                  }
+                } else {
+                  return { ...value, answer: '' }
+                }
+              } else {
+                return { ...value, answer: '' }
+              }
+            }
+            return value
+          // @ts-expect-error
+          case 'essay':
+            if (value.answer == null) {
+              return { ...value, answer: '' }
+            }
+          case 'directions':
+          case 'comparator':
+            return value
+          default:
+            return { ...value, answer: '' }
+        }
+      }) as AnswerData
+
+      return nCachedAswer
     }
 
-    dispatch({ type: 'ADD_ANSWER', payload: emptyAnswer })
-    return cloneDeep(emptyAnswer)
+    return emptyAnswer
   }
 
   const { data, setData, post, processing, errors } = useForm({
@@ -187,12 +267,20 @@ const ActivityAnswer: FC<Props> = ({
                           label={val}
                           name="choice"
                           key={idx}
-                          defaultChecked={(
-                            data.answers!.data![index] as {
-                              points: number
-                              answer: Array<string>
-                            }
-                          ).answer.includes(val)}
+                          defaultChecked={
+                            (
+                              data.answers!.data![index] as {
+                                points: number
+                                answer: Array<string>
+                              }
+                            ).answer != null &&
+                            (
+                              data.answers!.data![index] as {
+                                points: number
+                                answer: Array<string>
+                              }
+                            ).answer.includes(val)
+                          }
                           onChange={(event) => handleInputChange(event, val)}
                         />
                       ))}
@@ -270,20 +358,9 @@ const ActivityAnswer: FC<Props> = ({
                 type="button"
                 className="w-full btn-primary"
                 onClick={() => {
-                  console.log('Data: ' + answers)
-                  dispatch({
-                    type: 'CHANGE_ANSWER',
-                    payload: {
-                      id: data.answers.id,
-                      data: data.answers.data,
-                    },
-                  })
-
-                  Inertia.visit(
+                  Inertia.post(
                     `/class/${id}/activity/${activity_id}/comparator/${index}`,
-                    {
-                      preserveState: true,
-                    }
+                    data as any
                   )
                 }}
               >
@@ -345,7 +422,7 @@ const ActivityAnswer: FC<Props> = ({
             />
           </div>
         )}
-        <div className="flex justify-center mt-16">
+        <div className="flex justify-end mt-16">
           <button
             type="submit"
             className="btn-primary w-fit"

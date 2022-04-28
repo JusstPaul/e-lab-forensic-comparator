@@ -13,19 +13,14 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('activities_answers', function (Blueprint $table) {
+        Schema::create('activities_checks', function (Blueprint $table) {
             $table->id();
-            $table->json('answers');
             $table->integer('score')->default(0);
-            $table->bigInteger('activity_id');
-            $table->foreign('activity_id')
+            $table->json('checks');
+            $table->bigInteger('answer_id');
+            $table->foreign('answer_id')
                 ->references('id')
-                ->on('classes_activities')
-                ->onDelete('cascade');
-            $table->bigInteger('student_id');
-            $table->foreign('student_id')
-                ->references('id')
-                ->on('users')
+                ->on('activities_answers')
                 ->onDelete('cascade');
             $table->timestamps();
         });
@@ -38,6 +33,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('activities_answers');
+        Schema::dropIfExists('activities_checks');
     }
 };

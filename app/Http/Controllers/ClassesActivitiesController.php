@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Classes;
 use App\Models\ClassesActivities;
+use Cache;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -14,8 +15,6 @@ class ClassesActivitiesController extends Controller
 {
     public function store(Request $request, $class_id)
     {
-        $classes = Classes::find(Hashids::decode($class_id)[0]);
-
         $request->validate([
             'title' => 'required|max:255',
             'type' => 'required|in:assignment,exam',
@@ -24,12 +23,15 @@ class ClassesActivitiesController extends Controller
             'questions' => 'required',
             'questions.*.type' => 'required|in:directions,question,comparator,essay',
             'questions.*.choices' => 'nullable',
+            'questions.*.choices.data' => 'required_if:questions.*.choices.active,==,1|array',
+            'questions.*.choices.type' => 'required_if:questions.*.choices.active,==,1|in:radio,checkbox',
             'questions.*.instruction' => 'required',
             'questions.*.points' => 'required|numeric',
             'questions.*.files' => 'required_if:questions.*.type,comparator|nullable|max:6|min:2',
             'questions.*.files.*' => 'image',
         ]);
 
+        $classes = Classes::find(Hashids::decode($class_id)[0]);
         $questions = array_map(function ($value) {
             if ($value['files'] != null) {
                 $files = array_map(function ($file) {
@@ -68,6 +70,7 @@ class ClassesActivitiesController extends Controller
     {
         $activity = ClassesActivities::find(Hashids::decode($activity_id)[0]);
         $total_points = 0;
+        $cached_answer = Cache::get('class:' . $class_id . '-activity:' . $activity_id);
 
         foreach ($activity->questions as $question) {
             $total_points += $question['points'];
@@ -86,16 +89,26 @@ class ClassesActivitiesController extends Controller
                 'created_at' => $activity->created_at,
             ],
             'total_points' => $total_points,
+            'cached_answer' => $cached_answer,
         ]);
     }
 
     public function comparator($class_id, $activity_id, $answer_index)
     {
-        // TODO: Use redis
+        $answer = Cache::get('class:' . $class_id . '-activity:' . $activity_id);
+        if ($answer == null) {
+            return redirect('/');
+        }
+
+        $answer['data'][$answer_index]['answer']['select_mode'] = 'left';
+        if ($answer['data'][$answer_index]['answer']['essay'] == null) {
+            $answer['data'][$answer_index]['answer']['essay'] = '';
+        }
         return Inertia::render('Auth/Student/Comparator', [
             'id' => $class_id,
             'activity_id' => $activity_id,
             'answer_index' => $answer_index,
+            'state' => $answer['data'][$answer_index],
         ]);
     }
 }

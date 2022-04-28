@@ -59,8 +59,10 @@ Route::group(['middleware', ['auth', 'role:student']], function () {
     // GET
     Route::get('/no-class-yet', [StudentController::class, 'index'])->name('class.unregistered');
     Route::get('/class/{class_id}/activity/{activity_id}', [ClassesActivitiesController::class, 'answer_activity'])->name('class.activity');
-    Route::get('/class/{class_id}/activity/{activity_id}/comparator/{answer_index}', [StudentController::class, 'comparator'])->name('class.activity.comparator');
+    Route::get('/class/{class_id}/activity/{activity_id}/comparator/{answer_index}', [ClassesActivitiesController::class, 'comparator'])->name('class.activity.comparator');
     // POST
+    Route::post('/class/{class_id}/activity/{activity_id}/index/{answer_index}', [ActivitiesAnswerController::class, 'restore_answers']);
+    Route::post('/class/{class_id}/activity/{activity_id}/comparator/{answer_index}', [ActivitiesAnswerController::class, 'store_answer_cache']);
     Route::post('/class/{class_id}/activity/{activity_id}', [ActivitiesAnswerController::class, 'store']);
 });
 
@@ -71,6 +73,7 @@ Route::group(['middleware' => ['auth', 'role:instructor|student']], function () 
     Route::get('/class/{class_id}/overview/progress/{student_id?}/{activity_id?}', [ClassesController::class, 'view_progress'])->name('class.overview.progress');
     Route::get('/profile/edit', [ProfileController::class, 'index'])->name('user.profile.edit');
     Route::get('/class/{class_id}/students/view', [ClassesController::class, 'view_students']);
+    Route::get('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesAnswerController::class, 'show_answers']);
     // POST
     Route::post('/profile/edit', [ProfileController::class, 'store_or_update']);
 });

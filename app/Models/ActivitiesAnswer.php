@@ -28,4 +28,9 @@ class ActivitiesAnswer extends Model
     {
         return $this->belongsTo(User::class, 'student_id');
     }
+
+    public function checks()
+    {
+        return $this->hasMany(ActivitiesChecks::class, 'answer_id');
+    }
 }

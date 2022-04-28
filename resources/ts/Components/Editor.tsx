@@ -21,6 +21,7 @@ const Editor: FC<Props> = ({
 
   return (
     <SunEditor
+      setDefaultStyle="font-size: 16px;"
       getSunEditorInstance={(sunEditor) => {
         editor.current = sunEditor
       }}
@@ -38,11 +39,11 @@ const Editor: FC<Props> = ({
       name={name}
       autoFocus={autoFocus}
       onChange={(content) => {
-        if (onChange) {
+        if (onChange != undefined) {
           onChange(content)
         }
       }}
-      setContents={setContents}
+      defaultValue={setContents}
       placeholder={placeholder}
     />
   )

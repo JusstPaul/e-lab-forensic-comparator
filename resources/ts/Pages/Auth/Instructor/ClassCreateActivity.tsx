@@ -408,7 +408,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                   {data.type == 'assignment' ? (
                     <>
                       <TextInput
-                        label="Date End (mm/dd/yyyy)"
+                        label="Date End"
                         type="date"
                         name="date_end"
                         value={data.date_end}
@@ -521,7 +521,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                 >
                   <PencilAltIcon className="icon" />
                 </a>
-                <ReactTooltip place="left" />
+                <ReactTooltip place="left" effect="float" />
               </div>
             </div>
           </div>

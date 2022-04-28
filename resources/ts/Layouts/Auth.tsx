@@ -50,12 +50,14 @@ const Auth = ({ title, class_id, children }: Props) => {
       <Head title={!title ? headTitle : title + ' • ' + headTitle} />
       <header className="grid grid-cols-3 items-center bg-primary px-2 md:px-4 py-4">
         {_user.role === 'admin' ? (
-          <Link
-            href="/"
-            className="text-lg font-extrabold col-span-2 md:col-span-1 w-fit"
-          >
-            Admin Dashboard
-          </Link>
+          <div>
+            <Link
+              href="/"
+              className="text-lg font-extrabold col-span-2 md:col-span-1 w-fit"
+            >
+              Admin Dashboard
+            </Link>
+          </div>
         ) : (
           <div className="flex gap-4 items-center">
             {_user.role == 'student' &&

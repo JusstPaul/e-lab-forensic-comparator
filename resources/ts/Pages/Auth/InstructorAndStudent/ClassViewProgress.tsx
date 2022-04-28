@@ -84,9 +84,11 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
                   }
                 >
                   <thead>
-                    <th className="table-header">Title</th>
-                    <th className="table-header">Score</th>
-                    <th className="table-header">Is On Time</th>
+                    <tr>
+                      <th className="table-header">Title</th>
+                      <th className="table-header">Score</th>
+                      <th className="table-header">Is On Time</th>
+                    </tr>
                   </thead>
                   {progressViewMode == 'Assignment' ? (
                     <tbody>
@@ -94,7 +96,11 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
                         <tr key={index}>
                           <td className="table-data">
                             {value.id != undefined ? (
-                              <Link href={`#`}>{value.title}</Link>
+                              <Link
+                                href={`/class/${id}/activity/${value.id}/show/${current_student.student.id}`}
+                              >
+                                {value.title}
+                              </Link>
                             ) : (
                               <span>{value.title}</span>
                             )}
@@ -118,7 +124,11 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
                         <tr key={index}>
                           <td className="table-data">
                             {value.id != undefined ? (
-                              <Link href={`#`}>{value.title}</Link>
+                              <Link
+                                href={`/class/${id}/activity/${value.id}/show/${current_student.student.id}`}
+                              >
+                                {value.title}
+                              </Link>
                             ) : (
                               <span>{value.title}</span>
                             )}

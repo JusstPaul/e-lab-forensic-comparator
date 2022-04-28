@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivitiesAnswer;
+use Cache;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Vinkla\Hashids\Facades\Hashids;
 
 class ActivitiesAnswerController extends Controller
@@ -37,8 +39,49 @@ class ActivitiesAnswerController extends Controller
             'answers' => $request->answers,
         ]);
 
+        Cache::forget('class:' . $class_id . '-activity:' . $activity_id);
+
         return redirect()->route('class.overview', [
             'class_id' => $class_id,
+        ]);
+    }
+
+    public function restore_answers(Request $request, $class_id, $activity_id, $answer_index)
+    {
+        $answer = Cache::get('class:' . $class_id . '-activity:' . $activity_id);
+        $answer['data'][$answer_index]['answer'] = $request->data;
+        Cache::forever('class:' . $class_id . '-activity:' . $activity_id, $answer);
+
+        return redirect()->route('class.activity', [
+            'activity_id' => $activity_id,
+            'class_id' => $class_id,
+        ]);
+    }
+
+    public function store_answer_cache(Request $request, $class_id, $activity_id, $answer_index)
+    {
+        Cache::forever('class:' . $class_id . '-activity:' . $activity_id, $request->answers);
+
+        return redirect()->route('class.activity.comparator', [
+            'class_id' => $class_id,
+            'activity_id' => $activity_id,
+            'answer_index' => $answer_index,
+        ]);
+    }
+
+    public function show_answers($class_id, $activity_id, $student_id)
+    {
+        return Inertia::render('Auth/InstructorAndStudent/ClassShowAnswers', [
+            'id' => $class_id,
+            'activity_id' => $activity_id,
+            'student_id' => $student_id,
+            'answers' => fn() => ActivitiesAnswer::where('activity_id', Hashids::decode($activity_id)[0])
+                ->where('student_id', Hashids::decode($student_id)[0])
+                ->get()
+                ->map(fn($val) => [
+                    'id' => $val->answers['id'],
+                    'data' => $val->answers['data'],
+                ])->first(),
         ]);
     }
 }

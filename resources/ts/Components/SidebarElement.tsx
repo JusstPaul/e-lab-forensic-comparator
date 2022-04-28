@@ -47,7 +47,7 @@ const SidebarElement: FC<Props> = ({
       {(isOpen || toggleable == false) && (
         <div className="ml-2 mt-2">
           {elements.length == 0 ? (
-            <span>Empty</span>
+            <span className="font-light">Empty</span>
           ) : (
             <>
               {elements.map((val, idx) => (
