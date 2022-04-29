@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivitiesAnswer;
+use App\Models\ActivitiesChecks;
 use App\Models\Classes;
 use App\Models\ClassesActivities;
 use App\Models\User;
@@ -69,6 +70,37 @@ class ClassesController extends Controller
                 'time_end' => $value->time_end,
                 'time_start' => $value->time_start,
             ])->first(),
+            'cards' => function () use ($classes) {
+                $cards = [];
+
+                $announcements = $classes->announcements()->get();
+                foreach ($announcements as $announcement) {
+                    array_push($cards, [
+                        'type' => 'announcement',
+                        'display' => $announcement['text'],
+                        'link' => '#',
+                        'created_at' => $announcement['created_at'],
+                    ]);
+                }
+
+                $activities = ClassesActivities::where('classes_id', $classes->id)->get();
+                foreach ($activities as $activity) {
+                    array_push($cards, [
+                        'type' => 'activity',
+                        'display' => $activity['title'],
+                        'link' => '/class/' . Hashids::encode($classes->id) . '/activity/' . Hashids::encode($activity['id']),
+                        'created_at' => $activity['created_at'],
+                    ]);
+                }
+
+                usort($cards, function ($card1, $card2) {
+                    $dt1 = strtotime($card1['created_at']);
+                    $dt2 = strtotime($card2['created_at']);
+                    return $dt2 - $dt1;
+                });
+
+                return $cards;
+            },
         ]);
     }
 
@@ -98,6 +130,7 @@ class ClassesController extends Controller
     {
         $user = auth()->user();
         $profile = $user->profile;
+        $role = $user->roles->first()->name;
 
         if ($profile == null) {
             return redirect()->route('user.profile.edit');
@@ -105,23 +138,43 @@ class ClassesController extends Controller
 
         return Inertia::render('Auth/InstructorAndStudent/ClassViewProgress', [
             'id' => $class_id,
-            'students' => fn() => Classes::find(Hashids::decode($class_id)[0])
-                ->students()
-                ->get()
-                ->map(function ($classes) {
-                    $student = User::where('users.id', $classes->student_id)
-                        ->join('profiles', 'profiles.user_id', '=', 'users.id')
-                        ->first();
+            'students' => function () use ($class_id, $user, $profile, $role) {
+                if ($role == 'student') {
+                    return [[
+                        'id' => Hashids::encode($user->id),
+                        'username' => $user->username,
+                        'name' => $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '. ',
+                    ]];
+                }
 
-                    return [
-                        'id' => Hashids::encode($student->user_id),
-                        'username' => $student->username,
-                        'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '. ',
-                    ];
-                }),
-            'current_student' => function () use ($student_id, $class_id) {
+                $students = Classes::find(Hashids::decode($class_id)[0])
+                    ->students()
+                    ->get()
+                    ->map(function ($classes) {
+                        $student = User::where('users.id', $classes->student_id)
+                            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                            ->first();
+
+                        return [
+                            'id' => Hashids::encode($student->user_id),
+                            'username' => $student->username,
+                            'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '. ',
+                        ];
+                    });
+
+                return $students;
+            },
+            'current_student' => function () use ($student_id, $class_id, $role, $user, $activity_id) {
                 if ($student_id == null) {
-                    return;
+                    return redirect('/');
+                }
+
+                if ($role == 'student' && Hashids::decode($student_id)[0] != $user->id) {
+                    return redirect()->route('class.overview.progress', [
+                        'activity_id' => $activity_id,
+                        'class_id' => $class_id,
+                        'student_id' => Hashids::encode($user->id),
+                    ]);
                 }
 
                 $activities = ClassesActivities::where('classes_id',
@@ -154,11 +207,13 @@ class ClassesController extends Controller
                             }
                         }
 
+                        $check = ActivitiesChecks::where('answer_id', $answer->id)->first();
+
                         array_push($activities_status, [
                             'id' => Hashids::encode($answer->id),
                             'type' => $activity->type,
                             'title' => $activity->title,
-                            'score' => $answer->is_checked ? $answer->score . '/' . $total : 'Submitted',
+                            'score' => $check != null ? $check->score . '/' . $total : 'Submitted',
                             'is_late' => new DateTime($answer->updated_at) > $date,
                         ]);
                     }

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ActivitiesAnswerController;
+use App\Http\Controllers\ActivitiesChecksController;
+use App\Http\Controllers\AnnouncementsController;
 use App\Http\Controllers\ClassesActivitiesController;
 use App\Http\Controllers\ClassesController;
 use App\Http\Controllers\ClassesStudentsController;
@@ -47,11 +49,12 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     Route::get('/class/create', [InstructorController::class, 'create_class']);
     Route::get('/class/{class_id}/students/add', [ClassesStudentsController::class, 'index']);
     Route::get('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'index']);
-
     // POST
     Route::post('/class/create', [ClassesController::class, 'store']);
     Route::post('/class/{class_id}/students/add', [ClassesStudentsController::class, 'store']);
     Route::post('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'store']);
+    Route::post('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesChecksController::class, 'store']);
+    Route::post('/class/{class_id}/announcement/create', [AnnouncementsController::class, 'store']);
 });
 
 // Role: Student

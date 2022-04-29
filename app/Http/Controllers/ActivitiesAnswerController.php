@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivitiesAnswer;
+use App\Models\ActivitiesChecks;
+use App\Models\ClassesActivities;
 use Cache;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -39,7 +41,7 @@ class ActivitiesAnswerController extends Controller
             'answers' => $request->answers,
         ]);
 
-        Cache::forget('class:' . $class_id . '-activity:' . $activity_id);
+        Cache::forget('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
 
         return redirect()->route('class.overview', [
             'class_id' => $class_id,
@@ -48,7 +50,7 @@ class ActivitiesAnswerController extends Controller
 
     public function restore_answers(Request $request, $class_id, $activity_id, $answer_index)
     {
-        $answer = Cache::get('class:' . $class_id . '-activity:' . $activity_id);
+        $answer = Cache::get('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
         $answer['data'][$answer_index]['answer'] = $request->data;
         Cache::forever('class:' . $class_id . '-activity:' . $activity_id, $answer);
 
@@ -60,7 +62,7 @@ class ActivitiesAnswerController extends Controller
 
     public function store_answer_cache(Request $request, $class_id, $activity_id, $answer_index)
     {
-        Cache::forever('class:' . $class_id . '-activity:' . $activity_id, $request->answers);
+        Cache::forever('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id, $request->answers);
 
         return redirect()->route('class.activity.comparator', [
             'class_id' => $class_id,
@@ -75,13 +77,45 @@ class ActivitiesAnswerController extends Controller
             'id' => $class_id,
             'activity_id' => $activity_id,
             'student_id' => $student_id,
-            'answers' => fn() => ActivitiesAnswer::where('activity_id', Hashids::decode($activity_id)[0])
-                ->where('student_id', Hashids::decode($student_id)[0])
-                ->get()
-                ->map(fn($val) => [
-                    'id' => $val->answers['id'],
-                    'data' => $val->answers['data'],
-                ])->first(),
+            'questions' => function () use ($class_id) {
+
+                $questions = ClassesActivities::where('id', Hashids::decode($class_id)[0])
+                    ->get()
+                    ->map(fn($val) => [
+                        'title' => $val->title,
+                        'type' => $val->type,
+                        'date_end' => $val->date_end,
+                        'time_end' => $val->time_end,
+                        'questions' => $val->questions,
+                    ])
+                    ->first();
+
+                $total_points = 0;
+                foreach ($questions['questions'] as $question) {
+                    if ($question['points'] != null) {
+                        $total_points += $question['points'];
+                    }
+                }
+
+                return [
+                    'questions' => $questions,
+                    'total_points' => $total_points,
+                ];
+            },
+            'answers' => function () use ($student_id, $activity_id) {
+
+                $answer = ActivitiesAnswer::where('activity_id', Hashids::decode($activity_id)[0])
+                    ->where('student_id', Hashids::decode($student_id)[0])
+                    ->first();
+
+                return [
+                    'answers' => [
+                        'id' => $answer['answers']['id'],
+                        'data' => $answer['answers']['data'],
+                    ],
+                    'checks' => ActivitiesChecks::where('answer_id', $answer['id'])->first(),
+                ];
+            },
         ]);
     }
 }

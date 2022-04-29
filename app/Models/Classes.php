@@ -31,4 +31,9 @@ class Classes extends Model
     {
         return $this->hasMany(ClassesActivities::class, 'classes_id');
     }
+
+    public function announcements()
+    {
+        return $this->hasMany(Announcements::class, 'class_id');
+    }
 }

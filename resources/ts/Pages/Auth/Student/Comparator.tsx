@@ -17,7 +17,6 @@ import {
 import Toggle from '@/Components/Toggle'
 import ImageViewer from 'react-simple-image-viewer'
 import Class from '@/Layouts/Class'
-import RadioGroup from '@/Components/RadioGroup'
 import CheckBox from '@/Components/CheckBox'
 import { ComparatorState } from './ActivityAnswer'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'

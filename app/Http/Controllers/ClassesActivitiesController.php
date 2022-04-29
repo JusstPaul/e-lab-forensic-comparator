@@ -70,7 +70,7 @@ class ClassesActivitiesController extends Controller
     {
         $activity = ClassesActivities::find(Hashids::decode($activity_id)[0]);
         $total_points = 0;
-        $cached_answer = Cache::get('class:' . $class_id . '-activity:' . $activity_id);
+        $cached_answer = Cache::get('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
 
         foreach ($activity->questions as $question) {
             $total_points += $question['points'];
@@ -95,7 +95,7 @@ class ClassesActivitiesController extends Controller
 
     public function comparator($class_id, $activity_id, $answer_index)
     {
-        $answer = Cache::get('class:' . $class_id . '-activity:' . $activity_id);
+        $answer = Cache::get('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
         if ($answer == null) {
             return redirect('/');
         }

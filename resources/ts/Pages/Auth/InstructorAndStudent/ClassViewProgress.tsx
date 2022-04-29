@@ -50,9 +50,9 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
   }
 
   // FIX: Remove this
-  if (_user.role == 'student') {
+  /*  if (_user.role == 'student') {
     return <Class id={id} mode={2}></Class>
-  }
+  } */
 
   return (
     <Class id={id} mode={2}>
@@ -155,28 +155,32 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
             <></>
           )}
         </div>
-        <div className="flex-grow-0 border-l border-dark h-full overflow-y-auto px-8 w-max">
-          <div className="mb-2 text-lg">Students</div>
-          {students != undefined ? (
-            <>
-              {students.map((value, index) => (
-                <Fragment key={index}>
-                  <Link
-                    href={`/class/${id}/overview/progress/${value.id}`}
-                    only={['current_student']}
-                    preserveState
-                    replace
-                    className="w-max"
-                  >
-                    <span className="w-max">{value.name}</span>
-                  </Link>
-                </Fragment>
-              ))}
-            </>
-          ) : (
-            <></>
-          )}
-        </div>
+        {_user.role == 'instructor' ? (
+          <div className="flex-grow-0 border-l border-dark h-full overflow-y-auto px-8 w-max">
+            <div className="mb-2 text-lg">Students</div>
+            {students != undefined ? (
+              <>
+                {students.map((value, index) => (
+                  <Fragment key={index}>
+                    <Link
+                      href={`/class/${id}/overview/progress/${value.id}`}
+                      only={['current_student']}
+                      preserveState
+                      replace
+                      className="w-max"
+                    >
+                      <span className="w-max">{value.name}</span>
+                    </Link>
+                  </Fragment>
+                ))}
+              </>
+            ) : (
+              <></>
+            )}
+          </div>
+        ) : (
+          <></>
+        )}
       </div>
     </Class>
   )

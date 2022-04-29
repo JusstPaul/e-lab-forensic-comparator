@@ -23,6 +23,7 @@ export type SideBarSection = {
 }
 
 export type User = {
+  id: string
   role: 'admin' | 'instructor' | 'student' | 'guest'
   name?: string
   sidebar?: Array<SideBarSection>

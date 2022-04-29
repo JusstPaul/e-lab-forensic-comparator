@@ -114,6 +114,7 @@ class HandleInertiaRequests extends Middleware
                 }
 
                 return [
+                    'id' => Hashids::encode($user->id),
                     'role' => $role,
                     'name' => $name,
                     'sidebar' => $sidebar,
