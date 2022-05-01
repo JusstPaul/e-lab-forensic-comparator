@@ -30,6 +30,10 @@ class UserController extends Controller
                 return redirect()->route('user.profile.edit');
             }
 
+            if ($user->joined_classes == null) {
+                return redirect()->route('class.unregistered');
+            }
+
             return redirect()->route('class.overview', [
                 'class_id' => Hashids::encode($user->joined_classes),
             ]);

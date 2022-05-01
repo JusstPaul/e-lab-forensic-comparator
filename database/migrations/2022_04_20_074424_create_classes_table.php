@@ -20,11 +20,6 @@ return new class extends Migration
             $table->string('day');
             $table->time('time_start');
             $table->time('time_end');
-            $table->bigInteger('instructor_id');
-            $table->foreign('instructor_id')
-                ->references('id')
-                ->on('users')
-                ->onDelete('cascade');
             $table->timestamps();
         });
     }
