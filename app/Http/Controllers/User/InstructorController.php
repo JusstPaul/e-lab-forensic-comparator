@@ -13,7 +13,6 @@ class InstructorController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $profile = $user->profile;
 
         if ($user->profile == null) {
             return redirect()->route('user.profile.edit');

@@ -38,7 +38,7 @@ const CreateUser: FC<Props> = ({}) => {
           }}
         >
           <TextInput
-            label="Student Number or Username"
+            label="Username"
             name="username"
             value={data.username}
             isFocused={true}

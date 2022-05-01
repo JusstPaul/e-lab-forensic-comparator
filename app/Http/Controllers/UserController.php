@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ClassesStudents;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,16 +30,8 @@ class UserController extends Controller
                 return redirect()->route('user.profile.edit');
             }
 
-            $classes = ClassesStudents::where('student_id', $user->id)
-                ->get()
-                ->first();
-
-            if ($classes == null) {
-                return redirect()->route('class.unregistered');
-            }
-
             return redirect()->route('class.overview', [
-                'class_id' => Hashids::encode($classes->classes->id),
+                'class_id' => Hashids::encode($user->joined_classes),
             ]);
         }
         //

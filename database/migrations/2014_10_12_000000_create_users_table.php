@@ -17,6 +17,11 @@ return new class extends Migration
             $table->id();
             $table->string('username')->unique();
             $table->string('password');
+            $table->bigInteger('joined_classes')->nullable();
+            $table->foreign('joined_classes')
+                ->references('id')
+                ->on('classes')
+                ->nullOnDelete();
             $table->rememberToken();
             $table->timestamps();
         });

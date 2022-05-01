@@ -3,7 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\ActivitiesAnswer;
-use App\Models\ClassesStudents;
+use App\Models\Classes;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Vinkla\Hashids\Facades\Hashids;
@@ -56,11 +56,9 @@ class HandleInertiaRequests extends Middleware
                 }
 
                 if ($role == 'student') {
-                    $classes = ClassesStudents::where('student_id', $user->id)
-                        ->first();
+                    $classes = $user->joined_class;
 
                     if ($classes != null) {
-                        $classes = $classes->classes;
                         $assignments = [];
                         $exams = [];
 

@@ -24,7 +24,7 @@ class Classes extends Model
 
     public function students()
     {
-        return $this->hasMany(ClassesStudents::class, 'classes_id');
+        return $this->hasMany(User::class, 'joined_classes', 'id');
     }
 
     public function activities()

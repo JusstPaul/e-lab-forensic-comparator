@@ -5,7 +5,6 @@ use App\Http\Controllers\ActivitiesChecksController;
 use App\Http\Controllers\AnnouncementsController;
 use App\Http\Controllers\ClassesActivitiesController;
 use App\Http\Controllers\ClassesController;
-use App\Http\Controllers\ClassesStudentsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\User\AdminController;
@@ -47,11 +46,11 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     // GET
     Route::get('/instructor/dashboard', [InstructorController::class, 'index'])->name('instructor.dashboard');
     Route::get('/class/create', [InstructorController::class, 'create_class']);
-    Route::get('/class/{class_id}/students/add', [ClassesStudentsController::class, 'index']);
+    Route::get('/class/{class_id}/students/add', [ClassesController::class, 'show_add_students']);
     Route::get('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'index']);
     // POST
     Route::post('/class/create', [ClassesController::class, 'store']);
-    Route::post('/class/{class_id}/students/add', [ClassesStudentsController::class, 'store']);
+    Route::post('/class/{class_id}/students/add', [ClassesController::class, 'store_add_students']);
     Route::post('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'store']);
     Route::post('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesChecksController::class, 'store']);
     Route::post('/class/{class_id}/announcement/create', [AnnouncementsController::class, 'store']);

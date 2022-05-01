@@ -36,6 +36,48 @@ class ClassesController extends Controller
         return redirect('/');
     }
 
+    public function store_add_students(Request $request, $class_id)
+    {
+        $request->validate([
+            'selected' => 'required|array',
+        ]);
+
+        $decoded_class_id = Hashids::decode($class_id)[0];
+
+        $decoded = array_map(function ($value) {
+            return Hashids::decode($value)[0];
+        }, $request->selected);
+
+        User::whereIn('id', $decoded)->update([
+            'joined_classes' => $decoded_class_id,
+        ]);
+
+        return redirect()->route('class.overview', [
+            'class_id' => $class_id,
+        ]);
+    }
+
+    public function show_add_students($class_id)
+    {
+        return Inertia::render('Auth/Instructor/ClassAddStudent', [
+            'id' => $class_id,
+            'students' => function () {
+                return User::role('student')
+                    ->where('joined_classes', null)
+                    ->join('profiles', 'profiles.user_id', 'users.id')
+                    ->get()
+                    ->map(function ($value) {
+                        return [
+                            'id' => Hashids::encode($value->user_id),
+                            'student_id' => $value->username,
+                            'name' => $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.',
+                            'contact' => $value->contact,
+                        ];
+                    });
+            },
+        ]);
+    }
+
     public function index($class_id)
     {
 
@@ -48,14 +90,13 @@ class ClassesController extends Controller
         }
 
         $classes = Classes::find(Hashids::decode($class_id)[0])->get()->first();
-        $check_id = $classes->students()->get()->where('student_id', $user->id)->first();
 
-        if ($role == 'student' && $check_id->classes->id != $classes->id) {
+        if ($role == 'student' && $user->joined_classes != $classes->id) {
             return redirect('/');
         }
 
         return Inertia::render('Auth/InstructorAndStudent/ClassOverview', [
-            'classes' => fn() => Classes::find(Hashids::decode($class_id)[0])
+            'classes' => fn() => Classes::where('id', Hashids::decode($class_id)[0])
                 ->get()->map(fn($value) => [
                 'id' => $class_id,
                 'code' => $value->code,
@@ -106,23 +147,21 @@ class ClassesController extends Controller
 
     public function view_students($class_id)
     {
-        $user = auth()->user();
-        $role = $user->roles->first()->name;
         $classes = Classes::find(Hashids::decode($class_id)[0]);
 
         return Inertia::render('Auth/InstructorAndStudent/ClassViewStudents', [
             'id' => $class_id,
-            'students' => fn() => $classes->students()->get()->map(function ($value) use ($role) {
-                $user = User::find($value->student_id);
-                $profile = $user->profile;
-
-                return [
-                    'id' => Hashids::encode($user->id),
-                    'student_id' => $user->username,
-                    'name' => $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.',
-                    'contact' => ($role == 'student' ? null : $profile->contact),
-                ];
-            }),
+            'students' => fn() => $classes->students()
+                ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                ->get()
+                ->map(function ($value) {
+                    return [
+                        'id' => Hashids::encode($value->user_id),
+                        'student_id' => $value->username,
+                        'name' => $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.',
+                        'contact' => $value->contact,
+                    ];
+                }),
         ]);
     }
 
@@ -147,22 +186,17 @@ class ClassesController extends Controller
                     ]];
                 }
 
-                $students = Classes::find(Hashids::decode($class_id)[0])
+                return Classes::find(Hashids::decode($class_id)[0])
                     ->students()
+                    ->join('profiles', 'profiles.user_id', '=', 'users.id')
                     ->get()
-                    ->map(function ($classes) {
-                        $student = User::where('users.id', $classes->student_id)
-                            ->join('profiles', 'profiles.user_id', '=', 'users.id')
-                            ->first();
-
+                    ->map(function ($student) {
                         return [
                             'id' => Hashids::encode($student->user_id),
                             'username' => $student->username,
-                            'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '. ',
+                            'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
                         ];
                     });
-
-                return $students;
             },
             'current_student' => function () use ($student_id, $class_id, $role, $user, $activity_id) {
                 if ($student_id == null && $role != 'student') {

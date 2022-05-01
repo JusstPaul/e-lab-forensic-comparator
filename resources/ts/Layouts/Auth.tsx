@@ -100,6 +100,15 @@ const Auth = ({ title, class_id, children }: Props) => {
               ) : (
                 <></>
               )}
+              {_user.role == 'admin' ? (
+                <span>
+                  <Link href="/user/create" disabled={url === '/user/create'}>
+                    Create User
+                  </Link>
+                </span>
+              ) : (
+                <></>
+              )}
               <button
                 type="button"
                 className="outline-none bg-primary-dark p-2 rounded-full shadow-sm"
@@ -112,18 +121,6 @@ const Auth = ({ title, class_id, children }: Props) => {
           {isOpen ? (
             <Dropdown>
               <DropdownChild>
-                {_user.role === 'admin' && (
-                  <DropdownSelect>
-                    <Link
-                      href="/user/create"
-                      disabled={url === '/user/create'}
-                      className="w-full"
-                    >
-                      Create User
-                    </Link>
-                  </DropdownSelect>
-                )}
-
                 <DropdownSelect>
                   <Link href="/profile/edit" className="w-full text-left">
                     Profile

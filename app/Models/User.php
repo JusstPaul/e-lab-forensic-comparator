@@ -53,6 +53,7 @@ class User extends Authenticatable
     protected $fillable = [
         'username',
         'password',
+        'joined_classes',
     ];
 
     /**
@@ -79,9 +80,9 @@ class User extends Authenticatable
         return $this->hasOne(Profile::class);
     }
 
-    public function student_class()
+    public function joined_class()
     {
-        return $this->belongsTo(ClassesStudents::class, 'student_id');
+        return $this->belongsTo(Classes::class, 'joined_classes');
     }
 
     public function classes()
