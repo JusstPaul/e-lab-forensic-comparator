@@ -165,8 +165,8 @@ class ClassesController extends Controller
                 return $students;
             },
             'current_student' => function () use ($student_id, $class_id, $role, $user, $activity_id) {
-                if ($student_id == null) {
-                    return redirect('/');
+                if ($student_id == null && $role != 'student') {
+                    return;
                 }
 
                 if ($role == 'student' && Hashids::decode($student_id)[0] != $user->id) {

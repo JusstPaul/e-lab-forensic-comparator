@@ -52,7 +52,7 @@ class ActivitiesAnswerController extends Controller
     {
         $answer = Cache::get('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
         $answer['data'][$answer_index]['answer'] = $request->data;
-        Cache::forever('class:' . $class_id . '-activity:' . $activity_id, $answer);
+        Cache::forever('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id, $answer);
 
         return redirect()->route('class.activity', [
             'activity_id' => $activity_id,
