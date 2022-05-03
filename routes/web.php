@@ -37,8 +37,11 @@ Route::group(['middleware' => ['auth', 'role:admin']], function () {
     // GET
     Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
     Route::get('/user/create', [AdminController::class, 'create'])->name('admin.user.create');
+    Route::get('/user/edit/{user_id}', [UserController::class, 'edit']);
     // POST
     Route::post('/user/create', [UserController::class, 'store']);
+    Route::post('/user/delete/{user_id}', [UserController::class, 'destroy']);
+    Route::post('/user/edit/{user_id}', [UserController::class, 'update']);
 });
 
 // Role: Instructor
@@ -46,11 +49,16 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     // GET
     Route::get('/instructor/dashboard', [InstructorController::class, 'index'])->name('instructor.dashboard');
     Route::get('/class/create', [InstructorController::class, 'create_class']);
+    Route::get('/class/edit/{class_id}', [ClassesController::class, 'edit']);
     Route::get('/class/{class_id}/students/add', [ClassesController::class, 'show_add_students']);
     Route::get('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'index']);
+    Route::get('/class/{class_id}/activity/import', [ClassesActivitiesController::class, 'import_index']);
     // POST
     Route::post('/class/create', [ClassesController::class, 'store']);
+    Route::post('/class/edit/{class_id}', [ClassesController::class, 'update']);
+    Route::post('/class/delete/{class_id}', [ClassesController::class, 'destroy']);
     Route::post('/class/{class_id}/students/add', [ClassesController::class, 'store_add_students']);
+    Route::post('/class/{class_id}/students/remove', [ClassesController::class, 'remove_students']);
     Route::post('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'store']);
     Route::post('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesChecksController::class, 'store']);
     Route::post('/class/{class_id}/announcement/create', [AnnouncementsController::class, 'store']);
@@ -74,7 +82,7 @@ Route::group(['middleware' => ['auth', 'role:instructor|student']], function () 
     Route::get('/class/overview/{class_id}', [ClassesController::class, 'index'])->name('class.overview');
     Route::get('/class/{class_id}/overview/progress/{student_id?}/{activity_id?}', [ClassesController::class, 'view_progress'])->name('class.overview.progress');
     Route::get('/profile/edit', [ProfileController::class, 'index'])->name('user.profile.edit');
-    Route::get('/class/{class_id}/students/view', [ClassesController::class, 'view_students']);
+    Route::get('/class/{class_id}/students/view', [ClassesController::class, 'view_students'])->name('class.students.view');
     Route::get('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesAnswerController::class, 'show_answers']);
     // POST
     Route::post('/profile/edit', [ProfileController::class, 'store_or_update']);

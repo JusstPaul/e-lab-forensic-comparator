@@ -36,6 +36,46 @@ class ClassesController extends Controller
         return redirect('/');
     }
 
+    public function destroy($class_id)
+    {
+        Classes::destroy(Hashids::decode($class_id)[0]);
+        return redirect()->route('instructor.dashboard');
+    }
+
+    public function edit($class_id)
+    {
+        $class = Classes::find(Hashids::decode($class_id)[0]);
+
+        return Inertia::render('Auth/Instructor/EditClass', [
+            'id' => $class_id,
+            'section' => $class->code,
+            'room' => $class->room,
+            'day' => $class->day,
+            'time_start' => $class->time_start,
+            'time_end' => $class->time_end,
+        ]);
+    }
+
+    public function update(Request $request, $class_id)
+    {
+        $request->validate([
+            'section' => 'required|max:16',
+            'room' => 'required|max:10',
+            'day' => 'required|in:MWF,TTh,Sat',
+            'time_start' => 'required|date_format:H:i',
+            'time_end' => 'required|date_format:H:i|after:time_start',
+        ]);
+        $class = Classes::find(Hashids::decode($class_id)[0]);
+        $class->code = $request->section;
+        $class->room = $request->room;
+        $class->day = $request->day;
+        $class->time_start = $request->time_start;
+        $class->time_end = $request->time_end;
+        $class->save();
+
+        return redirect()->route('instructor.dashboard');
+    }
+
     public function store_add_students(Request $request, $class_id)
     {
         $request->validate([
@@ -53,6 +93,25 @@ class ClassesController extends Controller
         ]);
 
         return redirect()->route('class.overview', [
+            'class_id' => $class_id,
+        ]);
+    }
+
+    public function remove_students(Request $request, $class_id)
+    {
+        $request->validate([
+            'students' => 'required|array',
+        ]);
+
+        $ids = array_map(function ($id) {
+            return Hashids::decode($id)[0];
+        }, $request->students);
+
+        User::whereIn('id', $ids)->update([
+            'joined_classes' => null,
+        ]);
+
+        return redirect()->route('class.students.view', [
             'class_id' => $class_id,
         ]);
     }

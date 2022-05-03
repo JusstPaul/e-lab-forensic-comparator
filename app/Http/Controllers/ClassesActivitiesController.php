@@ -66,6 +66,25 @@ class ClassesActivitiesController extends Controller
         ]);
     }
 
+    public function import_index($class_id)
+    {
+        $user = auth()->user();
+
+        return Inertia::render('Auth/Instructor/ClassImportActivity', [
+            'id' => $class_id,
+            'activities' => fn() => Classes::where('instructor_id', $user->id)
+                ->join('classes_activities', 'classes_activities.classes_id', '=', 'classes.id')
+                ->get()
+                ->map(function ($value) {
+                    return [
+                        'id' => $value->id,
+                        'title' => $value->title,
+                        'created_at' => $value->created_at,
+                    ];
+                }),
+        ]);
+    }
+
     public function answer_activity($class_id, $activity_id)
     {
         $activity = ClassesActivities::find(Hashids::decode($activity_id)[0]);

@@ -1,5 +1,5 @@
 import { FC, ChangeEvent, useState, useCallback } from 'react'
-import { useForm, usePage } from '@inertiajs/inertia-react'
+import { useForm, usePage, Link } from '@inertiajs/inertia-react'
 import {
   PlusCircleIcon,
   TemplateIcon,
@@ -514,13 +514,13 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                   <TemplateIcon className="icon" />
                 </button>
 
-                <a
-                  href="#"
+                <Link
+                  href={`/class/${id}/activity/import`}
                   className="flex gap-2 items-center"
                   data-tip="Import Question"
                 >
                   <PencilAltIcon className="icon" />
-                </a>
+                </Link>
                 <ReactTooltip place="left" effect="float" />
               </div>
             </div>

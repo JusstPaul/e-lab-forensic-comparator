@@ -24,6 +24,7 @@ class ActivitiesChecksController extends Controller
         ], [
             'score' => $request->checks['score'],
             'checks' => $request->checks['checks'],
+            'is_checked' => true,
         ]);
 
         return redirect()->route('class.overview.progress', [

@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('activities_checks', function (Blueprint $table) {
             $table->id();
+            $table->boolean('is_checked')->default(false);
             $table->integer('score')->default(0);
             $table->json('checks');
             $table->bigInteger('answer_id');

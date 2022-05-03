@@ -12,6 +12,7 @@ class ActivitiesChecks extends Model
     protected $fillable = [
         'score',
         'checks',
+        'is_checked',
     ];
 
     protected $casts = [
