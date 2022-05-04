@@ -513,7 +513,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                 >
                   <TemplateIcon className="icon" />
                 </button>
-
+                {/*
                 <Link
                   href={`/class/${id}/activity/import`}
                   className="flex gap-2 items-center"
@@ -521,6 +521,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                 >
                   <PencilAltIcon className="icon" />
                 </Link>
+                */}
                 <ReactTooltip place="left" effect="float" />
               </div>
             </div>

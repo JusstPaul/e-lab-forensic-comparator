@@ -170,7 +170,7 @@ class ClassesController extends Controller
                 'time_end' => $value->time_end,
                 'time_start' => $value->time_start,
             ])->first(),
-            'cards' => function () use ($classes) {
+            'cards' => function () use ($classes, $class_id, $role) {
                 $cards = [];
 
                 $announcements = $classes->announcements()->get();
@@ -178,19 +178,30 @@ class ClassesController extends Controller
                     array_push($cards, [
                         'type' => 'announcement',
                         'display' => $announcement['text'],
-                        'link' => '#',
+                        'link' => '/class/' . $class_id . '/announcement/view/' . Hashids::encode($announcement['id']),
                         'created_at' => $announcement['created_at'],
                     ]);
                 }
 
                 $activities = ClassesActivities::where('classes_id', $classes->id)->get();
                 foreach ($activities as $activity) {
-                    array_push($cards, [
-                        'type' => 'activity',
-                        'display' => $activity['title'],
-                        'link' => '/class/' . Hashids::encode($classes->id) . '/activity/' . Hashids::encode($activity['id']),
-                        'created_at' => $activity['created_at'],
-                    ]);
+                    if ($role == 'student') {
+                        array_push($cards, [
+                            'type' => 'activity',
+                            'display' => $activity['title'],
+                            'link' => '/class/' . Hashids::encode($classes->id) . '/activity/' . Hashids::encode($activity['id']),
+                            'created_at' => $activity['created_at'],
+                        ]);
+                    } else {
+                        array_push($cards, [
+                            'type' => 'activity',
+                            'display' => $activity['title'],
+                            //'link' => '/class/' . $class_id . '/activity/view/' . Hashids::encode($activity['id']),
+                            'link' => '/class' . '/' . $class_id . '/overview/progress',
+                            'created_at' => $activity['created_at'],
+                        ]);
+
+                    }
                 }
 
                 usort($cards, function ($card1, $card2) {

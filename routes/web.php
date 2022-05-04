@@ -53,6 +53,8 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     Route::get('/class/{class_id}/students/add', [ClassesController::class, 'show_add_students']);
     Route::get('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'index']);
     Route::get('/class/{class_id}/activity/import', [ClassesActivitiesController::class, 'import_index']);
+    Route::get('/class/{class_id}/activity/view/{activity_id}', [ClassesActivitiesController::class, 'view']);
+    Route::get('/class/{class_id}/announcement/edit/{announcement_id}', [AnnouncementsController::class, 'edit']);
     // POST
     Route::post('/class/create', [ClassesController::class, 'store']);
     Route::post('/class/edit/{class_id}', [ClassesController::class, 'update']);
@@ -62,6 +64,8 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     Route::post('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'store']);
     Route::post('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesChecksController::class, 'store']);
     Route::post('/class/{class_id}/announcement/create', [AnnouncementsController::class, 'store']);
+    Route::post('/class/{class_id}/announcement/delete/{announcement_id}', [AnnouncementsController::class, 'destroy']);
+    Route::post('/class/{class_id}/announcement/edit/{announcement_id}', [AnnouncementsController::class, 'update']);
 });
 
 // Role: Student
@@ -84,6 +88,7 @@ Route::group(['middleware' => ['auth', 'role:instructor|student']], function () 
     Route::get('/profile/edit', [ProfileController::class, 'index'])->name('user.profile.edit');
     Route::get('/class/{class_id}/students/view', [ClassesController::class, 'view_students'])->name('class.students.view');
     Route::get('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesAnswerController::class, 'show_answers']);
+    Route::get('/class/{class_id}/announcement/view/{announcement_id}', [AnnouncementsController::class, 'index'])->name('class.announcement.view');
     // POST
     Route::post('/profile/edit', [ProfileController::class, 'store_or_update']);
 });
@@ -94,5 +99,4 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/', [UserController::class, 'index']);
     // POST
     Route::post('/logout', [UserController::class, 'logout']);
-
 });

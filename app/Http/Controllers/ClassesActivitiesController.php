@@ -66,6 +66,25 @@ class ClassesActivitiesController extends Controller
         ]);
     }
 
+    public function view($class_id, $activity_id)
+    {
+        $id = Hashids::decode($activity_id)[0];
+
+        return Inertia::render('Auth/Instructor/ClassViewActivity', [
+            'id' => $class_id,
+            'activity' => function () use ($id, $activity_id) {
+                $activity = ClassesActivities::find($id);
+
+                return [
+                    'id' => $activity_id,
+                    'title' => $activity->title,
+                    'date_end' => $activity->date_end,
+                    'time_end' => $activity->time_end,
+                ];
+            },
+        ]);
+    }
+
     public function import_index($class_id)
     {
         $user = auth()->user();

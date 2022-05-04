@@ -79,7 +79,7 @@ class ActivitiesAnswerController extends Controller
             'student_id' => $student_id,
             'questions' => function () use ($class_id) {
 
-                $questions = ClassesActivities::where('id', Hashids::decode($class_id)[0])
+                $questions = ClassesActivities::where('classes_id', Hashids::decode($class_id)[0])
                     ->get()
                     ->map(fn($val) => [
                         'title' => $val->title,
