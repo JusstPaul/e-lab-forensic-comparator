@@ -1,6 +1,6 @@
-const mix = require("laravel-mix");
-const path = require("path");
-const tailwindcss = require("tailwindcss");
+const mix = require('laravel-mix')
+const path = require('path')
+const tailwindcss = require('tailwindcss')
 /*
  |--------------------------------------------------------------------------
  | Mix Asset Management
@@ -12,26 +12,32 @@ const tailwindcss = require("tailwindcss");
  |
  */
 
-mix.alias({
-    "@": path.resolve("resources/ts"),
-})
-    .react()
-    .ts("resources/ts/App.tsx", "public/js/app.js")
-    .sass("resources/sass/app.scss", "public/css")
-    .webpackConfig({
-        output: {
-            chunkFilename: "js/[name].js?id=[chunkhash]",
+mix
+  .alias({
+    '@': path.resolve('resources/ts'),
+  })
+  .react()
+  .ts('resources/ts/App.tsx', 'public/js/app.js')
+  .sass('resources/sass/app.scss', 'public/css')
+  .webpackConfig({
+    output: {
+      chunkFilename: 'js/[name].js?id=[chunkhash]',
+    },
+    module: {
+      rules: [
+        {
+          loader: 'ts-shader-loader',
+          test: /\.(glsl|vs|fs)$/,
         },
-        module: {
-            rules: [],
-        },
-    })
-    .options({
-        postCss: [tailwindcss("./tailwind.config.js")],
-    });
+      ],
+    },
+  })
+  .options({
+    postCss: [tailwindcss('./tailwind.config.js')],
+  })
 
 if (mix.inProduction()) {
-    mix.version();
+  mix.version()
 }
 
-mix.disableNotifications();
+mix.disableNotifications()

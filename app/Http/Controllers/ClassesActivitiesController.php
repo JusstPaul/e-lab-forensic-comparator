@@ -146,7 +146,7 @@ class ClassesActivitiesController extends Controller
             'id' => $class_id,
             'activity_id' => $activity_id,
             'answer_index' => $answer_index,
-            'state' => $answer['data'][$answer_index],
+            'state_comparator' => $answer['data'][$answer_index],
         ]);
     }
 }

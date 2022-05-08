@@ -1,5 +1,13 @@
 // NOTE: Whoever reads this code, just don't.
-import { FC, useState, useCallback, useEffect, createRef } from 'react'
+import {
+  FC,
+  useState,
+  useCallback,
+  useEffect,
+  Suspense,
+  createRef,
+  useRef,
+} from 'react'
 import { Inertia } from '@inertiajs/inertia'
 import { Link, usePage } from '@inertiajs/inertia-react'
 import {
@@ -10,6 +18,18 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from '@heroicons/react/solid'
+import * as THREE from 'three'
+import {
+  Canvas,
+  ThreeEvent,
+  useFrame,
+  useLoader,
+  extend,
+  ReactThreeFiber,
+} from '@react-three/fiber'
+import { Image, shaderMaterial, useCursor, Html } from '@react-three/drei'
+import { useSpring, animated } from '@react-spring/three'
+import { useDrag } from '@use-gesture/react'
 import Toggle from '@/Components/Toggle'
 import ImageViewer from 'react-simple-image-viewer'
 import Class from '@/Layouts/Class'
@@ -17,20 +37,37 @@ import CheckBox from '@/Components/CheckBox'
 import { ComparatorState } from './ActivityAnswer'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import Editor from '@/Components/Editor'
+import vertexShader from '@/Shaders/vertex.glsl'
+import fragmentShader from '@/Shaders/fragment.glsl'
+import { Vector4 } from 'three'
 
 type Props = {
   id: string
   activity_id: string
   answer_index: number
-  state: { answer: ComparatorState; points: number }
+  state_comparator: { answer: ComparatorState; points: number }
 }
 
-const Comparator: FC<Props> = ({ id, activity_id, answer_index, state }) => {
+/* const ComparatorImageShaderMaterial = shaderMaterial(
+  {
+    u_img: new THREE.Texture(),
+    u_inset: new THREE.Vector4(),
+  },
+  vertexShader,
+  fragmentShader
+)  */
+
+const Comparator: FC<Props> = ({
+  id,
+  activity_id,
+  answer_index,
+  state_comparator,
+}) => {
   const { aws } = usePage().props
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
 
-  const [comparator, setComparator] = useState(state.answer)
+  const [comparator, setComparator] = useState(state_comparator.answer)
 
   const [leftSrc, setLeftSrc] = useState('')
   const [rightSrc, setRightSrc] = useState('')
@@ -53,26 +90,9 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, state }) => {
     setIsViewerOpen(false)
   }, [])
 
-  const containerRef = createRef<HTMLDivElement>()
-  const canvasRef = createRef<HTMLCanvasElement>()
-  const [sliderDimensions, setSliderDimensions] = useState({
-    width: 0,
-    height: 0,
-  })
-  const [sliderPos, setSliderPos] = useState(0)
-
   const [imageSide, setImageSide] = useState<'left' | 'right'>('left')
 
-  useEffect(() => {
-    if (containerRef.current) {
-      const { width, height } = containerRef.current.getBoundingClientRect()
-      setSliderPos(Math.round(width / 2))
-
-      setSliderDimensions({ width, height })
-    }
-  }, [])
-
-  useEffect(() => {
+  const updateImages = () => {
     setLeftSrc(
       getFileURL(
         client,
@@ -87,90 +107,108 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, state }) => {
         comparator.images[comparator.current.right]
       )
     )
-  }, [comparator])
-
-  const [isSliderMoving, setIsSliderMoving] = useState(false)
+  }
 
   useEffect(() => {
-    if (containerRef.current) {
-      const { width, height } = containerRef.current.getBoundingClientRect()
+    updateImages()
+  }, [])
 
+  useEffect(() => {
+    updateImages()
+  }, [comparator])
+
+  const Comparator = () => {
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+    const canvasDimensions = useRef({ w: 0, h: 0 })
+
+    const sliderRef = useRef<THREE.Mesh>(null)
+
+    const sliderPos = useRef(0)
+
+    useEffect(() => {
       if (canvasRef.current) {
-        const { current } = canvasRef
-
-        const ctx = current.getContext('2d')
-        if (ctx) {
-          const covered = sliderPos / width
-
-          const leftImg = new Image()
-          leftImg.src = leftSrc
-          leftImg.onload = () => {
-            ctx.drawImage(
-              leftImg,
-              0,
-              0,
-              leftImg.width * covered,
-              leftImg.height,
-              0,
-              0,
-              sliderPos,
-              height
-            )
-          }
-
-          const rightImg = new Image()
-          rightImg.src = rightSrc
-          rightImg.onload = () => {
-            ctx.drawImage(
-              rightImg,
-              rightImg.width * covered,
-              0,
-              rightImg.width,
-              rightImg.height,
-              sliderPos,
-              0,
-              width,
-              height
-            )
-
-            // Draw slider
-            ctx.beginPath()
-            ctx.strokeStyle = '#ffffff'
-            ctx.lineWidth = 5
-            ctx.lineJoin = 'miter'
-            ctx.moveTo(sliderPos, 0)
-            ctx.lineTo(sliderPos, height)
-            ctx.stroke()
-            ctx.closePath()
-          }
+        const { width, height } = canvasRef.current.getBoundingClientRect()
+        canvasDimensions.current = {
+          w: width,
+          h: height,
         }
       }
-    }
-  }, [containerRef, canvasRef])
+    }, [canvasRef])
 
-  // TODO: Add annotations
-  const Scene = () => {
+    const LeftImg = () => {
+      const img = useLoader(THREE.TextureLoader, [leftSrc])
+
+      const imgInset = useRef(new Vector4(0, 0.5, 0, 0))
+      useFrame(
+        useCallback(() => {
+          if (imgInset.current) {
+          }
+        }, [sliderPos])
+      )
+
+      return (
+        <animated.mesh>
+          <planeBufferGeometry args={[10, 10]} />
+          <meshStandardMaterial color={0xaeaeae} />
+          <shaderMaterial
+            vertexShader={vertexShader}
+            fragmentShader={fragmentShader}
+            uniforms={
+              {
+                u_img: {
+                  value: img[0],
+                },
+                u_inset: {
+                  value: imgInset.current,
+                },
+              } as any
+            }
+          />
+        </animated.mesh>
+      )
+    }
+
+    const Slider = () => {
+      useFrame(() => {
+        if (sliderRef.current) {
+          sliderRef.current.position.set(sliderPos.current, 0, 0)
+        }
+      })
+
+      const bind = useDrag(({ active, movement: [mX], direction: [dX] }) => {
+        if (active) {
+          const { w } = canvasDimensions.current
+          if (w != 0) {
+            let location = (mX / w) * 5
+            if (dX < 0 && location < -4.5) {
+              location = -4.5
+            } else if (dX > 0 && location > 4.5) {
+              location = 4.5
+            }
+
+            sliderPos.current = location
+          }
+        }
+      })
+
+      return (
+        <animated.mesh ref={sliderRef} {...(bind() as any)}>
+          <planeBufferGeometry args={[0.08, 10]} />
+          <meshStandardMaterial color={0xffffff} />
+        </animated.mesh>
+      )
+    }
+
     return (
-      <canvas
-        ref={canvasRef}
-        className="bg-gray-300 border border-dark rounded overflow-hidden shadow-sm"
-        width={sliderDimensions.width}
-        height={sliderDimensions.height}
-        onMouseDown={(event) => {
-          const pos = event.clientX - (event.target as any).offsetLeft
-          if (pos >= sliderPos - 2 && pos <= sliderPos + 2) {
-            setIsSliderMoving(true)
-          }
-        }}
-        onMouseUp={() => setIsSliderMoving(false)}
-        onMouseLeave={() => setIsSliderMoving(false)}
-        onMouseMove={(event) => {
-          if (isSliderMoving) {
-            setSliderPos(sliderPos + event.movementX)
-          }
-        }}
-      />
+      <Canvas ref={canvasRef} className="w-full h-full rounded-md shadow-sm">
+        <ambientLight />
+        <Suspense>
+          <LeftImg />
+          <Slider />
+        </Suspense>
+      </Canvas>
     )
+    return <></>
   }
 
   return (
@@ -207,11 +245,8 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, state }) => {
       </div>
       <div className="flex mt-4 px-2">
         <div className="flex-grow overflow-hidden px-8">
-          <div
-            ref={containerRef}
-            className="h-full md:w-6/12 mx-auto px-2 md:px-4 overflow-hidden"
-          >
-            <Scene />
+          <div className="h-full md:w-6/12 mx-auto px-2 md:px-4 overflow-hidden">
+            <Comparator />
           </div>
         </div>
 
@@ -824,7 +859,6 @@ const Comparator: FC<Props> = ({ id, activity_id, answer_index, state }) => {
             }
             src={getFileURL(client, _aws.bucket, value)}
             onClick={() => {
-              console.log(comparator)
               switch (imageClickMode) {
                 case 'preview':
                   openImageViewer(index)

@@ -26,7 +26,7 @@
         "@/*": [
             "resources/ts/*"
         ]
-    }
+    },
   },
   "include": [
     "resources/ts/**/*" // I have my tsx and ts in this directory, modify this as per your needs
