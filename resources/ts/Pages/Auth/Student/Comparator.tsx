@@ -19,16 +19,11 @@ import {
   ZoomOutIcon,
 } from '@heroicons/react/solid'
 import * as THREE from 'three'
-import {
-  Canvas,
-  ThreeEvent,
-  useFrame,
-  useLoader,
-  extend,
-  ReactThreeFiber,
-} from '@react-three/fiber'
+import { Canvas, ThreeEvent, useFrame, useLoader } from '@react-three/fiber'
+import { useControls, Leva, button } from 'leva'
 import { Image, shaderMaterial, useCursor, Html } from '@react-three/drei'
 import { useSpring, animated } from '@react-spring/three'
+import { animated as a } from '@react-spring/web'
 import { useDrag } from '@use-gesture/react'
 import Toggle from '@/Components/Toggle'
 import ImageViewer from 'react-simple-image-viewer'
@@ -47,15 +42,6 @@ type Props = {
   answer_index: number
   state_comparator: { answer: ComparatorState; points: number }
 }
-
-/* const ComparatorImageShaderMaterial = shaderMaterial(
-  {
-    u_img: new THREE.Texture(),
-    u_inset: new THREE.Vector4(),
-  },
-  vertexShader,
-  fragmentShader
-)  */
 
 const Comparator: FC<Props> = ({
   id,
@@ -90,7 +76,15 @@ const Comparator: FC<Props> = ({
     setIsViewerOpen(false)
   }, [])
 
-  const [imageSide, setImageSide] = useState<'left' | 'right'>('left')
+  const workSpaceRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (workSpaceRef.current) {
+      const { width } = workSpaceRef.current.getBoundingClientRect()
+      if (!(width <= 639)) {
+      }
+    }
+  }, [workSpaceRef.current])
 
   const updateImages = () => {
     setLeftSrc(
@@ -118,6 +112,51 @@ const Comparator: FC<Props> = ({
   }, [comparator])
 
   const Comparator = () => {
+    const { zoom: lZoom } = useControls('Left', {
+      zoom: {
+        min: 0,
+        max: 5,
+        step: 1,
+        value: 0,
+      },
+      'move x': {
+        min: -5,
+        max: 5,
+        step: 1,
+        value: 0,
+      },
+      'move y': {
+        min: -5,
+        max: 5,
+        step: 1,
+        value: 0,
+      },
+    })
+    const { zoom: rZoom, 'move x': rMoveX } = useControls('Right', {
+      zoom: {
+        min: 0,
+        max: 5,
+        step: 1,
+        value: 0,
+      },
+      'move x': {
+        min: -5,
+        max: 5,
+        step: 1,
+        value: 0,
+      },
+      'move y': {
+        min: -5,
+        max: 5,
+        step: 1,
+        value: 0,
+      },
+    })
+    const { preview } = useControls('General', {
+      preview: false,
+      'add screenshot': button((get) => {}),
+    })
+
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const canvasDimensions = useRef({ w: 0, h: 0 })
 
@@ -142,14 +181,17 @@ const Comparator: FC<Props> = ({
       useFrame(
         useCallback(() => {
           if (imgInset.current) {
+            const percent = sliderPos.current / 5
+            const zoomOffset = lZoom / 5
+            imgInset.current.y = 0.5 - percent / 2 - zoomOffset
           }
-        }, [sliderPos])
+        }, [sliderPos, lZoom])
       )
 
       return (
         <animated.mesh>
-          <planeBufferGeometry args={[10, 10]} />
-          <meshStandardMaterial color={0xaeaeae} />
+          <planeBufferGeometry args={[10 + lZoom, 10 + lZoom]} />
+          <meshStandardMaterial />
           <shaderMaterial
             vertexShader={vertexShader}
             fragmentShader={fragmentShader}
@@ -163,6 +205,45 @@ const Comparator: FC<Props> = ({
                 },
               } as any
             }
+            transparent
+          />
+        </animated.mesh>
+      )
+    }
+
+    const RightImg = () => {
+      const img = useLoader(THREE.TextureLoader, [rightSrc])
+
+      const imgInset = useRef(new Vector4(0, 0, 0, 0.5))
+      useFrame(
+        useCallback(() => {
+          if (imgInset.current) {
+            const percent = sliderPos.current / 5
+            const sliderLoc = 0.5 + percent / 2
+            const zoomOffset = (rZoom / 5) * 0.001
+            imgInset.current.w = sliderLoc + zoomOffset
+          }
+        }, [sliderPos, rZoom])
+      )
+
+      return (
+        <animated.mesh>
+          <planeBufferGeometry args={[10 + rZoom, 10 + rZoom]} />
+          <meshStandardMaterial />
+          <shaderMaterial
+            vertexShader={vertexShader}
+            fragmentShader={fragmentShader}
+            uniforms={
+              {
+                u_img: {
+                  value: img[0],
+                },
+                u_inset: {
+                  value: imgInset.current,
+                },
+              } as any
+            }
+            transparent
           />
         </animated.mesh>
       )
@@ -193,17 +274,25 @@ const Comparator: FC<Props> = ({
 
       return (
         <animated.mesh ref={sliderRef} {...(bind() as any)}>
-          <planeBufferGeometry args={[0.08, 10]} />
-          <meshStandardMaterial color={0xffffff} />
+          <planeBufferGeometry args={[0.1, 10]} />
+          <meshStandardMaterial color={0xffffff} transparent={false} />
         </animated.mesh>
       )
     }
 
     return (
-      <Canvas ref={canvasRef} className="w-full h-full rounded-md shadow-sm">
+      <Canvas
+        ref={canvasRef}
+        style={{
+          width: 500,
+          height: 500,
+        }}
+        className="flex-grow rounded-md shadow-sm mx-6"
+      >
         <ambientLight />
         <Suspense>
           <LeftImg />
+          <RightImg />
           <Slider />
         </Suspense>
       </Canvas>
@@ -243,664 +332,76 @@ const Comparator: FC<Props> = ({
           </div>
         </div>
       </div>
-      <div className="flex mt-4 px-2">
-        <div className="flex-grow overflow-hidden px-8">
-          <div className="h-full md:w-6/12 mx-auto px-2 md:px-4 overflow-hidden">
-            <Comparator />
+      <div ref={workSpaceRef} className="mt-4 px-2 h-fit">
+        <div className="flex h-full overflow-auto px-6 py-2 md:px-12 mx-auto">
+          <div className="max-w-[180px] w-full col-span-2">
+            <Leva
+              theme={{
+                colors: {
+                  elevation1: '#E2E8F0',
+                  elevation2: '#F1F5F9',
+                  elevation3: '#E2E8F0',
+                  accent1: '#14B8A6',
+                  accent2: '#2DD4BF',
+                  accent3: '#5EEAD4',
+                  highlight1: '#1F2937',
+                  highlight2: '#111827',
+                  highlight3: '#111827',
+                  folderWidgetColor: '#111827',
+                  folderTextColor: '#111827',
+                },
+              }}
+              fill
+              flat
+              titleBar={false}
+              oneLineLabels={true}
+            />
           </div>
-        </div>
-
-        <div className="flex-grow-0 flex justify-end w-max">
-          <div className="flex flex-col gap-2">
-            <span className="text-lg select-none">Set Image</span>
-            <div className="capitalize">
-              <Toggle
-                label={imageSide}
-                onChange={() => {
-                  switch (imageSide) {
-                    case 'left':
-                      setImageSide('right')
-                      setComparator({ ...comparator, select_mode: 'right' })
-                      break
-                    case 'right':
-                      setImageSide('left')
-                      setComparator({ ...comparator, select_mode: 'left' })
-                      break
-                  }
-                }}
-              />
-            </div>
-            <div className="flex flex-col gap-2 w-full px-4">
-              <div className="flex justify-end">
-                <div>
-                  <span className="text-left text-sm font-medium mr-2 mb-1">
-                    Zoom
-                  </span>
-                  <div className="px-4 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 0.1
-
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            scales: {
-                              ...comparator.scales,
-                              right: comparator.scales.right + rate,
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                transform: `scale(${
-                                  comparator.scales.right + rate
-                                })`,
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            scales: {
-                              ...comparator.scales,
-                              left: comparator.scales.left + rate,
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                transform: `scale(${
-                                  comparator.scales.left + rate
-                                })`,
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <ZoomInIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 0.1
-
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            scales: {
-                              ...comparator.scales,
-                              right: comparator.scales.right - rate,
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                transform: `scale(${
-                                  comparator.scales.right - rate
-                                })`,
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            scales: {
-                              ...comparator.scales,
-                              left: comparator.scales.left - rate,
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                transform: `scale(${
-                                  comparator.scales.left - rate
-                                })`,
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <ZoomOutIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (comparator.select_mode == 'right') {
-                          const nStylright = comparator.styles.right
-                          delete nStylright['transform']
-
-                          setComparator({
-                            ...comparator,
-                            scales: {
-                              ...comparator.scales,
-                              right: 1,
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: nStylright,
-                            },
-                          })
-                        } else {
-                          const nStyleLeft = comparator.styles.left
-                          delete nStyleLeft['transform']
-
-                          setComparator({
-                            ...comparator,
-                            scales: {
-                              ...comparator.scales,
-                              left: 1,
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: nStyleLeft,
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <div>
-                  <span className="text-left text-sm font-medium mr-2 mb-1">
-                    Adjust
-                  </span>
-                  <div className="px-4 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              right: {
-                                ...comparator.location.right,
-                                y: comparator.location.right.y - rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                top: comparator.location.right.y - rate,
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              left: {
-                                ...comparator.location.left,
-                                y: comparator.location.left.y - rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                top: comparator.location.left.y - rate,
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <ArrowUpIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              right: {
-                                ...comparator.location.right,
-                                y: comparator.location.right.y + rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                top: comparator.location.right.y + rate,
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              left: {
-                                ...comparator.location.left,
-                                y: comparator.location.left.y + rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                top: comparator.location.left.y + rate,
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <ArrowDownIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              right: {
-                                ...comparator.location.right,
-                                x: comparator.location.right.x + rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                right: comparator.location.right.x + rate,
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              left: {
-                                ...comparator.location.left,
-                                x: comparator.location.left.x - rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                left: comparator.location.left.x - rate,
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <ArrowLeftIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              right: {
-                                ...comparator.location.right,
-                                x: comparator.location.right.x - rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                right: comparator.location.right.x - rate,
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              left: {
-                                ...comparator.location.left,
-                                x: comparator.location.left.x + rate,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                left: comparator.location.left.x + rate,
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <ArrowRightIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (comparator.select_mode == 'right') {
-                          const nStylright = comparator.styles.right
-                          delete nStylright['top']
-                          delete nStylright['right']
-
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              right: {
-                                x: 0,
-                                y: 0,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              right: nStylright,
-                            },
-                          })
-                        } else {
-                          const nStylleft = comparator.styles.left
-                          delete nStylleft['top']
-                          delete nStylleft['left']
-
-                          setComparator({
-                            ...comparator,
-                            location: {
-                              ...comparator.location,
-                              left: {
-                                x: 0,
-                                y: 0,
-                              },
-                            },
-                            styles: {
-                              ...comparator.styles,
-                              left: nStylleft,
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <div>
-                  <span className="text-left text-sm font-medium mr-2 mb-1">
-                    Filter
-                  </span>
-                  <div className="px-4 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                filter: 'hue-rotate(180deg)',
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                filter: 'hue-rotate(180deg)',
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                filter: 'sepia(100%)',
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                filter: 'sepia(100%)',
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-yellow-200"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                filter: 'saturate(4)',
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                filter: 'saturate(4)',
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        if (comparator.select_mode == 'right') {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              right: {
-                                ...comparator.styles.right,
-                                filter: 'grayscale(100%)',
-                              },
-                            },
-                          })
-                        } else {
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              left: {
-                                ...comparator.styles.left,
-                                filter: 'grayscale(100%)',
-                              },
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-slate-500"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (comparator.select_mode == 'right') {
-                          const nStyleRight = comparator.styles.right
-                          delete nStyleRight['filter']
-
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              right: nStyleRight,
-                            },
-                          })
-                        } else {
-                          const nStyleleft = comparator.styles.left
-                          delete nStyleleft['filter']
-
-                          setComparator({
-                            ...comparator,
-                            styles: {
-                              ...comparator.styles,
-                              left: nStyleleft,
-                            },
-                          })
-                        }
-                      }}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <CheckBox
-                  label="Preview"
-                  name="mode"
-                  onChange={() => {
-                    switch (imageClickMode) {
-                      case 'preview':
-                        setImageClickMode('set')
-                        break
-                      case 'set':
-                        setImageClickMode('preview')
-                        break
-                    }
-                  }}
-                />
-              </div>
+          <div className="flex-grow-0 w-full">
+            <div className="mx-auto w-fit">
+              <Comparator />
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="flex justify-center gap-2 overflow-y-auto px-4 py-2">
-        {comparator.images.map((value, index) => (
-          <img
-            key={index}
-            className={
-              'w-16 h-16 rounded-md cursor-pointer ' +
-              ((index == comparator.current.left ||
-                index == comparator.current.right) &&
-                'border-2 border-primary')
-            }
-            src={getFileURL(client, _aws.bucket, value)}
-            onClick={() => {
-              switch (imageClickMode) {
-                case 'preview':
-                  openImageViewer(index)
-                  break
-                case 'set':
-                  if (comparator.select_mode == 'left') {
-                    setComparator({
-                      ...comparator,
-                      current: {
-                        ...comparator.current,
-                        left: index,
-                      },
-                    })
-
-                    /*                     const nLeftImg = leftImg
-                    nLeftImg.src = getFileURL(
-                      client,
-                      _aws.bucket,
-                      comparator.images[index]
-                    )
-                    setLeftImg(nLeftImg) */
-                  } else {
-                    setComparator({
-                      ...comparator,
-                      current: {
-                        ...comparator.current,
-                        right: index,
-                      },
-                    })
-
-                    /*                     const nRightImg = rightImg
-                    nRightImg.src = getFileURL(
-                      client,
-                      _aws.bucket,
-                      comparator.images[index]
-                    )
-                    setRightImg(nRightImg) */
-                  }
+        <div className="flex justify-center gap-2 overflow-y-auto px-4 py-2">
+          {comparator.images.map((value, index) => (
+            <img
+              key={index}
+              className={
+                'w-16 h-16 rounded-md cursor-pointer ' +
+                ((index == comparator.current.left ||
+                  index == comparator.current.right) &&
+                  'border-2 border-primary')
               }
-            }}
-          />
-        ))}
+              src={getFileURL(client, _aws.bucket, value)}
+              onClick={() => {
+                switch (imageClickMode) {
+                  case 'preview':
+                    openImageViewer(index)
+                    break
+                  case 'set':
+                    if (comparator.select_mode == 'left') {
+                      setComparator({
+                        ...comparator,
+                        current: {
+                          ...comparator.current,
+                          left: index,
+                        },
+                      })
+                    } else {
+                      setComparator({
+                        ...comparator,
+                        current: {
+                          ...comparator.current,
+                          right: index,
+                        },
+                      })
+                    }
+                }
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="px-4 py-2 w-3/6 mx-auto">
