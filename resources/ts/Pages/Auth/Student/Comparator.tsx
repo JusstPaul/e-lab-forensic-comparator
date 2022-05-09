@@ -4,37 +4,21 @@ import {
   useState,
   useCallback,
   useEffect,
-  Suspense,
-  createRef,
   useRef,
+  CSSProperties,
 } from 'react'
 import { Inertia } from '@inertiajs/inertia'
 import { Link, usePage } from '@inertiajs/inertia-react'
-import {
-  ArrowDownIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from '@heroicons/react/solid'
-import * as THREE from 'three'
-import { Canvas, ThreeEvent, useFrame, useLoader } from '@react-three/fiber'
+
 import { useControls, Leva, button } from 'leva'
-import { Image, shaderMaterial, useCursor, Html } from '@react-three/drei'
-import { useSpring, animated } from '@react-spring/three'
-import { animated as a } from '@react-spring/web'
-import { useDrag } from '@use-gesture/react'
-import Toggle from '@/Components/Toggle'
 import ImageViewer from 'react-simple-image-viewer'
 import Class from '@/Layouts/Class'
-import CheckBox from '@/Components/CheckBox'
 import { ComparatorState } from './ActivityAnswer'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import Editor from '@/Components/Editor'
-import vertexShader from '@/Shaders/vertex.glsl'
-import fragmentShader from '@/Shaders/fragment.glsl'
-import { Vector4 } from 'three'
+import html2canvas from 'html2canvas'
+import Cropper, { Area } from 'react-easy-crop'
+import * as markerjs2 from 'markerjs2'
 
 type Props = {
   id: string
@@ -54,6 +38,10 @@ const Comparator: FC<Props> = ({
   const client = s3Client(_aws)
 
   const [comparator, setComparator] = useState(state_comparator.answer)
+
+  const [annotations, setAnnotations] = useState<
+    Array<{ image: File; essay: string }>
+  >([])
 
   const [leftSrc, setLeftSrc] = useState('')
   const [rightSrc, setRightSrc] = useState('')
@@ -77,14 +65,6 @@ const Comparator: FC<Props> = ({
   }, [])
 
   const workSpaceRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (workSpaceRef.current) {
-      const { width } = workSpaceRef.current.getBoundingClientRect()
-      if (!(width <= 639)) {
-      }
-    }
-  }, [workSpaceRef.current])
 
   const updateImages = () => {
     setLeftSrc(
@@ -112,192 +92,202 @@ const Comparator: FC<Props> = ({
   }, [comparator])
 
   const Comparator = () => {
-    const { zoom: lZoom } = useControls('Left', {
-      zoom: {
-        min: 0,
-        max: 5,
-        step: 1,
-        value: 0,
-      },
-      'move x': {
-        min: -5,
-        max: 5,
-        step: 1,
-        value: 0,
-      },
-      'move y': {
-        min: -5,
-        max: 5,
-        step: 1,
-        value: 0,
-      },
-    })
-    const { zoom: rZoom, 'move x': rMoveX } = useControls('Right', {
-      zoom: {
-        min: 0,
-        max: 5,
-        step: 1,
-        value: 0,
-      },
-      'move x': {
-        min: -5,
-        max: 5,
-        step: 1,
-        value: 0,
-      },
-      'move y': {
-        min: -5,
-        max: 5,
-        step: 1,
-        value: 0,
-      },
-    })
+    const croppedRef = useRef<HTMLDivElement>(null)
+
     const { preview } = useControls('General', {
       preview: false,
-      'add screenshot': button((get) => {}),
+      'add annotation': button(() => {
+        if (croppedRef.current) {
+          html2canvas(croppedRef.current, {
+            allowTaint: true,
+            useCORS: true,
+          }).then((canvas) => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const nAnnotations = [...annotations]
+                nAnnotations.push({
+                  essay: '',
+                  image: new File(
+                    [blob],
+                    `comparator-${id}-${activity_id}-${answer_index}-${annotations.length}.png`,
+                    {
+                      type: 'image/png',
+                      lastModified: new Date().valueOf(),
+                    }
+                  ),
+                })
+                setAnnotations(nAnnotations)
+              }
+            })
+          })
+        }
+      }),
     })
 
-    const canvasRef = useRef<HTMLCanvasElement>(null)
-    const canvasDimensions = useRef({ w: 0, h: 0 })
+    const [leftCrop, setLeftCrop] = useState({ x: 0, y: 0 })
+    const [leftZoom, setLeftZoom] = useState(1)
+    const [leftCroppedArea, setLeftCroppedArea] = useState<Area>()
 
-    const sliderRef = useRef<THREE.Mesh>(null)
+    const [rightCrop, setRightCrop] = useState({ x: 0, y: 0 })
+    const [rightZoom, setRightZoom] = useState(1)
+    const [rightCroppedArea, setRightCroppedArea] = useState<Area>()
 
-    const sliderPos = useRef(0)
+    const ASPECT = 3 / 2
 
-    useEffect(() => {
-      if (canvasRef.current) {
-        const { width, height } = canvasRef.current.getBoundingClientRect()
-        canvasDimensions.current = {
-          w: width,
-          h: height,
-        }
+    const View = ({ croppedArea, url }: { croppedArea: Area; url: string }) => {
+      const scale = 100 / croppedArea.width
+      const transform = {
+        x: `${-croppedArea.x * scale}%`,
+        y: `${-croppedArea.y * scale}%`,
+        scale,
+        width: 'calc(100% + 0.5px)',
+        height: 'auto',
       }
-    }, [canvasRef])
 
-    const LeftImg = () => {
-      const img = useLoader(THREE.TextureLoader, [leftSrc])
-
-      const imgInset = useRef(new Vector4(0, 0.5, 0, 0))
-      useFrame(
-        useCallback(() => {
-          if (imgInset.current) {
-            const percent = sliderPos.current / 5
-            const zoomOffset = lZoom / 5
-            imgInset.current.y = 0.5 - percent / 2 - zoomOffset
-          }
-        }, [sliderPos, lZoom])
-      )
+      const imageStyle = {
+        transform: `translate3d(${transform.x}, ${transform.y}, 0) scale3d(${transform.scale}, ${transform.scale}, 1)`,
+        width: transform.width,
+        height: transform.height,
+      } as CSSProperties
 
       return (
-        <animated.mesh>
-          <planeBufferGeometry args={[10 + lZoom, 10 + lZoom]} />
-          <meshStandardMaterial />
-          <shaderMaterial
-            vertexShader={vertexShader}
-            fragmentShader={fragmentShader}
-            uniforms={
-              {
-                u_img: {
-                  value: img[0],
-                },
-                u_inset: {
-                  value: imgInset.current,
-                },
-              } as any
-            }
-            transparent
+        <div
+          style={{
+            paddingBottom: `${100 / ASPECT}%`,
+            width: 500,
+            height: 500,
+            overflow: 'hidden',
+          }}
+        >
+          <img
+            src={url}
+            style={{ ...imageStyle, height: 500, overflow: 'hidden' }}
           />
-        </animated.mesh>
-      )
-    }
-
-    const RightImg = () => {
-      const img = useLoader(THREE.TextureLoader, [rightSrc])
-
-      const imgInset = useRef(new Vector4(0, 0, 0, 0.5))
-      useFrame(
-        useCallback(() => {
-          if (imgInset.current) {
-            const percent = sliderPos.current / 5
-            const sliderLoc = 0.5 + percent / 2
-            const zoomOffset = (rZoom / 5) * 0.001
-            imgInset.current.w = sliderLoc + zoomOffset
-          }
-        }, [sliderPos, rZoom])
-      )
-
-      return (
-        <animated.mesh>
-          <planeBufferGeometry args={[10 + rZoom, 10 + rZoom]} />
-          <meshStandardMaterial />
-          <shaderMaterial
-            vertexShader={vertexShader}
-            fragmentShader={fragmentShader}
-            uniforms={
-              {
-                u_img: {
-                  value: img[0],
-                },
-                u_inset: {
-                  value: imgInset.current,
-                },
-              } as any
-            }
-            transparent
-          />
-        </animated.mesh>
-      )
-    }
-
-    const Slider = () => {
-      useFrame(() => {
-        if (sliderRef.current) {
-          sliderRef.current.position.set(sliderPos.current, 0, 0)
-        }
-      })
-
-      const bind = useDrag(({ active, movement: [mX], direction: [dX] }) => {
-        if (active) {
-          const { w } = canvasDimensions.current
-          if (w != 0) {
-            let location = (mX / w) * 5
-            if (dX < 0 && location < -4.5) {
-              location = -4.5
-            } else if (dX > 0 && location > 4.5) {
-              location = 4.5
-            }
-
-            sliderPos.current = location
-          }
-        }
-      })
-
-      return (
-        <animated.mesh ref={sliderRef} {...(bind() as any)}>
-          <planeBufferGeometry args={[0.1, 10]} />
-          <meshStandardMaterial color={0xffffff} transparent={false} />
-        </animated.mesh>
+        </div>
       )
     }
 
     return (
-      <Canvas
-        ref={canvasRef}
-        style={{
-          width: 500,
-          height: 500,
-        }}
-        className="flex-grow rounded-md shadow-sm mx-6"
-      >
-        <ambientLight />
-        <Suspense>
-          <LeftImg />
-          <RightImg />
-          <Slider />
-        </Suspense>
-      </Canvas>
+      <>
+        <div className={``}>
+          <div
+            className="z-10 mb-4 flex gap-4 overflow-hidden"
+            style={{
+              height: 300,
+              width: 900,
+            }}
+          >
+            <div
+              className="relative"
+              style={{
+                width: 300,
+                height: 300,
+                overflow: 'hidden',
+              }}
+            >
+              <Cropper
+                image={leftSrc}
+                aspect={ASPECT}
+                onCropChange={setLeftCrop}
+                crop={leftCrop}
+                onZoomChange={setLeftZoom}
+                zoom={leftZoom}
+                onCropAreaChange={(croppedArea) => {
+                  setLeftCroppedArea(croppedArea)
+                }}
+                style={{
+                  containerStyle: {
+                    width: 300,
+                    height: 300,
+                    overflow: 'hidden',
+                  },
+                }}
+              />
+            </div>
+            <div
+              className="relative"
+              style={{
+                width: 300,
+                height: 300,
+                overflow: 'hidden',
+              }}
+            >
+              <Cropper
+                image={rightSrc}
+                aspect={ASPECT}
+                onCropChange={setRightCrop}
+                crop={rightCrop}
+                onZoomChange={setRightZoom}
+                zoom={rightZoom}
+                onCropAreaChange={(croppedArea) => {
+                  setRightCroppedArea(croppedArea)
+                }}
+                style={{
+                  containerStyle: {
+                    width: 300,
+                    height: 300,
+                    overflow: 'hidden',
+                  },
+                }}
+              />
+            </div>
+          </div>
+          <div
+            ref={croppedRef}
+            className="mt-4 flex gap-0 rounded-md shadow-sm"
+            style={{
+              height: 350,
+              overflow: 'hidden',
+            }}
+          >
+            {leftCroppedArea ? (
+              <View url={leftSrc} croppedArea={leftCroppedArea} />
+            ) : (
+              <>Unable to load Left Image</>
+            )}
+            {rightCroppedArea ? (
+              <View url={rightSrc} croppedArea={rightCroppedArea} />
+            ) : (
+              <>Unable to load Right Image</>
+            )}
+          </div>
+        </div>
+      </>
     )
-    return <></>
+  }
+
+  const Marker = ({
+    index,
+    value,
+  }: {
+    index: number
+    value: { image: File; essay: string }
+  }) => {
+    const ref = useRef<HTMLImageElement>(null)
+
+    return (
+      <div className="mx-auto w-fit mb-4 card">
+        <img
+          src={URL.createObjectURL(value.image)}
+          ref={ref}
+          onClick={() => {
+            if (ref.current) {
+              const markerArea = new markerjs2.MarkerArea(ref.current)
+              markerArea.settings.displayMode = 'popup'
+              markerArea.addEventListener('render', (event) => {
+                if (ref.current) {
+                  ref.current.src = event.dataUrl
+                }
+              })
+
+              markerArea.show()
+            }
+          }}
+          className="mb-4"
+        />
+        <Editor setContents={value.essay} />
+      </div>
+    )
   }
 
   return (
@@ -333,7 +323,7 @@ const Comparator: FC<Props> = ({
         </div>
       </div>
       <div ref={workSpaceRef} className="mt-4 px-2 h-fit">
-        <div className="flex h-full overflow-auto px-6 py-2 md:px-12 mx-auto">
+        <div className="flex h-full overflow-x-auto px-6 py-2 md:px-12 mx-auto">
           <div className="max-w-[180px] w-full col-span-2">
             <Leva
               theme={{
@@ -363,7 +353,7 @@ const Comparator: FC<Props> = ({
             </div>
           </div>
         </div>
-        <div className="flex justify-center gap-2 overflow-y-auto px-4 py-2">
+        <div className="flex gap-2 overflow-y-auto md:px-12 px-4 py-2">
           {comparator.images.map((value, index) => (
             <img
               key={index}
@@ -404,15 +394,13 @@ const Comparator: FC<Props> = ({
         </div>
       </div>
 
-      <div className="px-4 py-2 w-3/6 mx-auto">
-        <Editor
-          name="essay"
-          setContents={comparator.essay ? comparator.essay : ''}
-          onChange={(content) => {
-            setComparator({ ...comparator, essay: content })
-          }}
-        />
+      <div>
+        {annotations.map((value, index) => (
+          <Marker index={index} value={value} key={index} />
+        ))}
       </div>
+
+      <div className="px-4 py-2 w-3/6 mx-auto"></div>
       {isViewerOpen ? (
         <ImageViewer
           src={images}
