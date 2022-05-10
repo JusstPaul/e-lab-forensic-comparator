@@ -6,7 +6,9 @@ use App\Models\ActivitiesAnswer;
 use App\Models\ActivitiesChecks;
 use App\Models\ClassesActivities;
 use Cache;
+use Illuminate\Http\File;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Vinkla\Hashids\Facades\Hashids;
 
@@ -51,7 +53,19 @@ class ActivitiesAnswerController extends Controller
     public function restore_answers(Request $request, $class_id, $activity_id, $answer_index)
     {
         $answer = Cache::get('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
-        $answer['data'][$answer_index]['answer'] = $request->data;
+        $data = $request->data;
+
+        $finalData = [];
+        foreach ($data as $d) {
+            $newData = $d;
+            $newData['image'] = Storage::disk('s3')
+                ->put('cache/' . 'user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id, new File($newData['image']));
+            $newData['isKey'] = true;
+
+            array_push($finalData, $newData);
+        }
+
+        $answer['data'][$answer_index]['answer'] = $finalData;
         Cache::forever('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id, $answer);
 
         return redirect()->route('class.activity', [
@@ -77,18 +91,20 @@ class ActivitiesAnswerController extends Controller
             'id' => $class_id,
             'activity_id' => $activity_id,
             'student_id' => $student_id,
-            'questions' => function () use ($class_id) {
+            'questions' => function () use ($class_id, $activity_id) {
 
-                $questions = ClassesActivities::where('classes_id', Hashids::decode($class_id)[0])
-                    ->get()
-                    ->map(fn($val) => [
-                        'title' => $val->title,
-                        'type' => $val->type,
-                        'date_end' => $val->date_end,
-                        'time_end' => $val->time_end,
-                        'questions' => $val->questions,
-                    ])
-                    ->first();
+/*                 $questions = ClassesActivities::where('classes_id', Hashids::decode($class_id)[0])
+->get()
+->map(fn($val) => [
+'title' => $val->title,
+'type' => $val->type,
+'date_end' => $val->date_end,
+'time_end' => $val->time_end,
+'questions' => $val->questions,
+])
+->first();
+ */
+                $questions = ClassesActivities::find(Hashids::decode($activity_id)[0]);
 
                 $total_points = 0;
                 foreach ($questions['questions'] as $question) {

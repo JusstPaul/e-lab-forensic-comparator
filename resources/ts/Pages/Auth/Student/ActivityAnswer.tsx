@@ -10,42 +10,11 @@ import Class from '@/Layouts/Class'
 import moment from 'moment'
 import { cloneDeep } from 'lodash'
 import Editor from '@/Components/Editor'
-
-export type ComparatorState = {
-  title: string
-  date: string
-  instructions: string
-  position: number
-  images: Array<string>
-  styles: {
-    left: CSSProperties
-    right: CSSProperties
-  }
-  scales: {
-    left: number
-    right: number
-  }
-  location: {
-    left: {
-      x: number
-      y: number
-    }
-    right: {
-      x: number
-      y: number
-    }
-  }
-  current: {
-    left: number
-    right: number
-  }
-  select_mode: 'left' | 'right'
-  essay?: string
-}
+import { AnnotationsState } from './Comparator'
 
 type AnswerData =
   | Array<{
-      answer: string | Array<string> | ComparatorState | undefined
+      answer: string | Array<string> | AnnotationsState | undefined
       points: number | undefined
     }>
   | undefined
@@ -106,37 +75,7 @@ const ActivityAnswer: FC<Props> = ({
           case 'comparator':
             return {
               points: value.points,
-              answer: {
-                title: activity.title,
-                date: date,
-                instructions: value.instruction,
-                position: 50,
-                images: value.files,
-                styles: {
-                  left: {},
-                  right: {},
-                },
-                scales: {
-                  left: 1,
-                  right: 1,
-                },
-                location: {
-                  left: {
-                    x: 0,
-                    y: 0,
-                  },
-                  right: {
-                    x: 0,
-                    y: 0,
-                  },
-                },
-                current: {
-                  left: 0,
-                  right: 1,
-                },
-                select_mode: 'left',
-                essay: '',
-              },
+              answer: [],
             }
           case 'directions':
           default:

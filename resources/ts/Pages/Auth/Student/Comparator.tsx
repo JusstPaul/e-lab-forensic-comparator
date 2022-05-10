@@ -9,48 +9,65 @@ import {
 } from 'react'
 import { Inertia } from '@inertiajs/inertia'
 import { Link, usePage } from '@inertiajs/inertia-react'
-
-import { useControls, Leva, button } from 'leva'
+import { useControls, Leva, button, buttonGroup } from 'leva'
 import ImageViewer from 'react-simple-image-viewer'
 import Class from '@/Layouts/Class'
-import { ComparatorState } from './ActivityAnswer'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import Editor from '@/Components/Editor'
 import html2canvas from 'html2canvas'
 import Cropper, { Area } from 'react-easy-crop'
 import * as markerjs2 from 'markerjs2'
+import { XCircleIcon } from '@heroicons/react/solid'
+import Select from '@/Components/Select'
+import { Question } from '../Instructor/ClassCreateActivity'
+
+export type Annotation = {
+  image: File | string
+  isKey: boolean
+  essay: string
+  state?: markerjs2.MarkerAreaState
+  filter: 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
+}
+export type AnnotationsState = Array<Annotation>
 
 type Props = {
   id: string
   activity_id: string
   answer_index: number
-  state_comparator: { answer: ComparatorState; points: number }
+  question: Question
+  state_annotation?: AnnotationsState
 }
 
 const Comparator: FC<Props> = ({
   id,
   activity_id,
   answer_index,
-  state_comparator,
+  state_annotation,
+  question,
 }) => {
   const { aws } = usePage().props
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
 
-  const [comparator, setComparator] = useState(state_comparator.answer)
+  const questionImages = question.files as Array<string>
+  const [questionImagesIndex, seQuestionImagesIndex] = useState({
+    left: 0,
+    right: 1,
+  })
 
-  const [annotations, setAnnotations] = useState<
-    Array<{ image: File; essay: string }>
-  >([])
+  const [annotations, setAnnotations] = useState<Array<Annotation>>(
+    state_annotation ? state_annotation : []
+  )
+
+  console.log(state_annotation)
 
   const [leftSrc, setLeftSrc] = useState('')
   const [rightSrc, setRightSrc] = useState('')
 
-  const [imageClickMode, setImageClickMode] = useState<'set' | 'preview'>('set')
   const [currentImage, setCurrentImage] = useState(0)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
 
-  const images = comparator.images.map((value) =>
+  const images = questionImages.map((value) =>
     getFileURL(client, _aws.bucket, value)
   )
 
@@ -68,18 +85,10 @@ const Comparator: FC<Props> = ({
 
   const updateImages = () => {
     setLeftSrc(
-      getFileURL(
-        client,
-        _aws.bucket,
-        comparator.images[comparator.current.left]
-      )
+      getFileURL(client, _aws.bucket, questionImages[questionImagesIndex.left])
     )
     setRightSrc(
-      getFileURL(
-        client,
-        _aws.bucket,
-        comparator.images[comparator.current.right]
-      )
+      getFileURL(client, _aws.bucket, questionImages[questionImagesIndex.right])
     )
   }
 
@@ -89,14 +98,26 @@ const Comparator: FC<Props> = ({
 
   useEffect(() => {
     updateImages()
-  }, [comparator])
+  }, [questionImagesIndex])
 
-  const Comparator = () => {
-    const croppedRef = useRef<HTMLDivElement>(null)
-
-    const { preview } = useControls('General', {
+  const croppedRef = useRef<HTMLDivElement>(null)
+  const [{ preview, select: selectMode }, setGeneral] = useControls(
+    'General',
+    () => ({
+      select: {
+        value: 'left',
+        options: ['left', 'right'],
+      },
+      ' ': buttonGroup({
+        left: () => {
+          setGeneral({ select: 'left' })
+        },
+        right: () => {
+          setGeneral({ select: 'right' })
+        },
+      }),
       preview: false,
-      'add annotation': button(() => {
+      'add screenshot': button(() => {
         if (croppedRef.current) {
           html2canvas(croppedRef.current, {
             allowTaint: true,
@@ -104,7 +125,7 @@ const Comparator: FC<Props> = ({
           }).then((canvas) => {
             canvas.toBlob((blob) => {
               if (blob) {
-                const nAnnotations = [...annotations]
+                const nAnnotations = annotations
                 nAnnotations.push({
                   essay: '',
                   image: new File(
@@ -115,15 +136,19 @@ const Comparator: FC<Props> = ({
                       lastModified: new Date().valueOf(),
                     }
                   ),
+                  filter: 'none',
+                  isKey: false,
                 })
-                setAnnotations(nAnnotations)
+                setAnnotations([...nAnnotations])
               }
             })
           })
         }
       }),
     })
+  )
 
+  const Comparator = () => {
     const [leftCrop, setLeftCrop] = useState({ x: 0, y: 0 })
     const [leftZoom, setLeftZoom] = useState(1)
     const [leftCroppedArea, setLeftCroppedArea] = useState<Area>()
@@ -161,7 +186,11 @@ const Comparator: FC<Props> = ({
         >
           <img
             src={url}
-            style={{ ...imageStyle, height: 500, overflow: 'hidden' }}
+            style={{
+              ...imageStyle,
+              height: 500,
+              overflow: 'hidden',
+            }}
           />
         </div>
       )
@@ -171,7 +200,26 @@ const Comparator: FC<Props> = ({
       <>
         <div className={``}>
           <div
-            className="z-10 mb-4 flex gap-4 overflow-hidden"
+            ref={croppedRef}
+            className="mt-4 flex gap-0 rounded-md shadow-sm"
+            style={{
+              height: 350,
+              overflow: 'hidden',
+            }}
+          >
+            {leftCroppedArea ? (
+              <View url={leftSrc} croppedArea={leftCroppedArea} />
+            ) : (
+              <span className="mx-2">Unable to load Left Image</span>
+            )}
+            {rightCroppedArea ? (
+              <View url={rightSrc} croppedArea={rightCroppedArea} />
+            ) : (
+              <span className="mx-2">Unable to load Right Image</span>
+            )}
+          </div>
+          <div
+            className="z-10 mt-4 flex justify-center gap-4 overflow-x-auto overflow-y-hidden"
             style={{
               height: 300,
               width: 900,
@@ -232,60 +280,104 @@ const Comparator: FC<Props> = ({
               />
             </div>
           </div>
-          <div
-            ref={croppedRef}
-            className="mt-4 flex gap-0 rounded-md shadow-sm"
-            style={{
-              height: 350,
-              overflow: 'hidden',
-            }}
-          >
-            {leftCroppedArea ? (
-              <View url={leftSrc} croppedArea={leftCroppedArea} />
-            ) : (
-              <>Unable to load Left Image</>
-            )}
-            {rightCroppedArea ? (
-              <View url={rightSrc} croppedArea={rightCroppedArea} />
-            ) : (
-              <>Unable to load Right Image</>
-            )}
-          </div>
         </div>
       </>
     )
   }
 
-  const Marker = ({
-    index,
-    value,
-  }: {
-    index: number
-    value: { image: File; essay: string }
-  }) => {
+  const Marker = ({ index, value }: { index: number; value: Annotation }) => {
+    const getStyle = (
+      filter: 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
+    ): CSSProperties => {
+      switch (filter) {
+        case 'none':
+          return {}
+        case 'hue':
+          return { filter: 'hue-rotate(180deg)' }
+        case 'sepia':
+          return { filter: 'sepia(100%)' }
+        case 'saturate':
+          return { filter: 'saturate(4)' }
+        case 'grayscale':
+          return { filter: 'grayscale(100%)' }
+      }
+    }
+
     const ref = useRef<HTMLImageElement>(null)
+    const url = value.isKey
+      ? getFileURL(client, _aws.bucket, value.image as string)
+      : URL.createObjectURL(value.image as File)
+    const [filterStyle, setFilterStyle] = useState(getStyle(value.filter))
 
     return (
-      <div className="mx-auto w-fit mb-4 card">
-        <img
-          src={URL.createObjectURL(value.image)}
-          ref={ref}
-          onClick={() => {
-            if (ref.current) {
-              const markerArea = new markerjs2.MarkerArea(ref.current)
-              markerArea.settings.displayMode = 'popup'
-              markerArea.addEventListener('render', (event) => {
-                if (ref.current) {
-                  ref.current.src = event.dataUrl
-                }
-              })
+      <div className="mx-auto w-fit mb-4 card relative">
+        <div className="card-legend capitalize flex justify-between">
+          <span>Screenshot #{index + 1}</span>
+          <button
+            type="button"
+            onClick={() => {
+              const nAnnotations = [...annotations]
+              nAnnotations.splice(index, 1)
 
-              markerArea.show()
-            }
-          }}
-          className="mb-4"
-        />
-        <Editor setContents={value.essay} />
+              setAnnotations([...nAnnotations])
+            }}
+          >
+            <XCircleIcon className="icon" />
+          </button>
+        </div>
+
+        <div className="card-legend-body py-2">
+          <img
+            src={url}
+            ref={ref}
+            style={filterStyle}
+            onClick={() => {
+              if (ref.current) {
+                const markerArea = new markerjs2.MarkerArea(ref.current)
+                markerArea.settings.displayMode = 'popup'
+                markerArea.addEventListener('render', (event) => {
+                  if (ref.current) {
+                    ref.current.src = event.dataUrl
+                    const nAnnotations = annotations
+                    nAnnotations[index] = {
+                      ...nAnnotations[index],
+                      state: event.state,
+                    }
+                  }
+                })
+
+                markerArea.show()
+              }
+            }}
+            className="mb-2 cursor-pointer"
+          />
+          <div>
+            <Select
+              name="select-filter"
+              label="Filter"
+              options={['none', 'hue', 'sepia', 'saturate', 'grayscale']}
+              value={value.filter}
+              onChange={(event) => {
+                const { value } = event.target
+                const nAnnotations = annotations
+                nAnnotations[index].filter = value as any
+
+                setAnnotations(nAnnotations)
+                setFilterStyle(getStyle(value as any))
+              }}
+              className="w-fit"
+            />
+          </div>
+          <Editor
+            setContents={value.essay}
+            onChange={(content) => {
+              const nAnnotations = annotations
+              nAnnotations[index].essay = content
+
+              setAnnotations(nAnnotations)
+            }}
+          />
+        </div>
       </div>
     )
   }
@@ -293,7 +385,7 @@ const Comparator: FC<Props> = ({
   return (
     <Class id={id} mode={3}>
       <div className="pt-4 pb-2 px-4 border-b border-dark flex justify-between">
-        <div className="text-sm">{comparator.instructions}</div>
+        <div className="text-sm">{question.instruction}</div>
         <div className="flex gap-4">
           <div className="flex gap-4">
             <div className="flex items-end"></div>
@@ -312,7 +404,7 @@ const Comparator: FC<Props> = ({
                 Inertia.post(
                   `/class/${id}/activity/${activity_id}/index/${answer_index}`,
                   {
-                    data: comparator as ComparatorState,
+                    data: annotations,
                   } as any
                 )
               }}
@@ -348,49 +440,41 @@ const Comparator: FC<Props> = ({
             />
           </div>
           <div className="flex-grow-0 w-full">
+            <div className="flex gap-2 overflow-x-auto md:px-12 px-4 py-2">
+              {questionImages.map((value, index) => (
+                <img
+                  key={index}
+                  className={
+                    'w-16 h-16 rounded-md cursor-pointer ' +
+                    ((index == questionImagesIndex.left ||
+                      index == questionImagesIndex.right) &&
+                      'border-2 border-primary')
+                  }
+                  src={getFileURL(client, _aws.bucket, value)}
+                  onClick={() => {
+                    if (preview) {
+                      openImageViewer(index)
+                    } else {
+                      if (selectMode == 'left') {
+                        seQuestionImagesIndex({
+                          ...questionImagesIndex,
+                          left: index,
+                        })
+                      } else {
+                        seQuestionImagesIndex({
+                          ...questionImagesIndex,
+                          right: index,
+                        })
+                      }
+                    }
+                  }}
+                />
+              ))}
+            </div>
             <div className="mx-auto w-fit">
               <Comparator />
             </div>
           </div>
-        </div>
-        <div className="flex gap-2 overflow-y-auto md:px-12 px-4 py-2">
-          {comparator.images.map((value, index) => (
-            <img
-              key={index}
-              className={
-                'w-16 h-16 rounded-md cursor-pointer ' +
-                ((index == comparator.current.left ||
-                  index == comparator.current.right) &&
-                  'border-2 border-primary')
-              }
-              src={getFileURL(client, _aws.bucket, value)}
-              onClick={() => {
-                switch (imageClickMode) {
-                  case 'preview':
-                    openImageViewer(index)
-                    break
-                  case 'set':
-                    if (comparator.select_mode == 'left') {
-                      setComparator({
-                        ...comparator,
-                        current: {
-                          ...comparator.current,
-                          left: index,
-                        },
-                      })
-                    } else {
-                      setComparator({
-                        ...comparator,
-                        current: {
-                          ...comparator.current,
-                          right: index,
-                        },
-                      })
-                    }
-                }
-              }}
-            />
-          ))}
         </div>
       </div>
 

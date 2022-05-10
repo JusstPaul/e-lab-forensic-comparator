@@ -97,12 +97,6 @@ Route::group(['middleware' => ['auth', 'role:instructor|student']], function () 
 Route::group(['middleware' => ['auth']], function () {
     // GET
     Route::get('/', [UserController::class, 'index']);
-    if (env('APP_DEBUG' == true)) {
-        Route::get('/css/{filename}', function ($filename) {
-            return redirect('http://localhost:8080/css/' . $filename);
-        });
-    }
-
     // POST
     Route::post('/logout', [UserController::class, 'logout']);
 });

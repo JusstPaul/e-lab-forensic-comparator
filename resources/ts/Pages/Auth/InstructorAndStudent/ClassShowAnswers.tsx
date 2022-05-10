@@ -1,14 +1,7 @@
-import { FC, useState } from 'react'
+import { CSSProperties, FC, useEffect, useRef, useState } from 'react'
 import { usePage, useForm } from '@inertiajs/inertia-react'
-import {
-  ReactCompareSlider,
-  ReactCompareSliderImage,
-  ReactCompareSliderHandle,
-} from 'react-compare-slider'
-import {
-  AnswerState,
-  ComparatorState,
-} from '@/Pages/Auth/Student/ActivityAnswer'
+import * as markerjs2 from 'markerjs2'
+import { AnswerState } from '@/Pages/Auth/Student/ActivityAnswer'
 import {
   Activity,
   Questions,
@@ -19,6 +12,7 @@ import moment from 'moment'
 import CheckBox from '@/Components/CheckBox'
 import { XCircleIcon } from '@heroicons/react/solid'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
+import { Annotation, AnnotationsState } from '../Student/Comparator'
 
 type CheckState = {
   score: number
@@ -58,11 +52,6 @@ const ClassShowAnswers: FC<Props> = ({
 
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
-
-  const [currentComparator, setCurrentComparator] = useState<
-    ComparatorState | undefined
-  >()
-  const [showCompator, setShowCompator] = useState(false)
 
   const date = questions.questions.date_end + ' ' + questions.questions.time_end
   const isLate = new Date(date).getTime() <= new Date().getTime()
@@ -117,22 +106,66 @@ const ClassShowAnswers: FC<Props> = ({
           </div>
         )
       case 'comparator':
+        const getStyle = (
+          filter: 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
+        ): CSSProperties => {
+          switch (filter) {
+            case 'none':
+              return {}
+            case 'hue':
+              return { filter: 'hue-rotate(180deg)' }
+            case 'sepia':
+              return { filter: 'sepia(100%)' }
+            case 'saturate':
+              return { filter: 'saturate(4)' }
+            case 'grayscale':
+              return { filter: 'grayscale(100%)' }
+          }
+        }
+        const Marker = ({ value }: { value: Annotation }) => {
+          const ref = useRef<HTMLImageElement>(null)
+          const url = getFileURL(client, _aws.bucket, value.image as string)
+          const state = useRef<markerjs2.MarkerAreaState>(
+            value.state ? value.state : null
+          )
+
+          return (
+            <div className="prose">
+              <img
+                ref={ref}
+                src={url}
+                className="mb-2"
+                style={getStyle(value.filter)}
+                onClick={() => {
+                  if (ref.current) {
+                    const markerArea = new markerjs2.MarkerArea(ref.current)
+                    markerArea.settings.displayMode = 'popup'
+                    markerArea.addEventListener('render', (event) => {
+                      if (ref.current) {
+                        ref.current.src = event.dataUrl
+                      }
+                    })
+                    markerArea.show()
+                    if (state.current) {
+                      markerArea.restoreState(state.current)
+                    }
+                  }
+                }}
+                crossOrigin="anonymous"
+              />
+              <div dangerouslySetInnerHTML={{ __html: value.essay }}></div>
+            </div>
+          )
+        }
         return (
           <div>
             <div className="prose">{instruction}</div>
             <div className="mt-2">
-              <button
-                type="button"
-                className="btn-primary w-full"
-                onClick={() => {
-                  setCurrentComparator(
-                    answers.answers.data![index].answer as ComparatorState
-                  )
-                  setShowCompator(true)
-                }}
-              >
-                View
-              </button>
+              {(answers.answers.data![index].answer as AnnotationsState).map(
+                (value, index) => (
+                  <Marker key={index} value={value} />
+                )
+              )}
             </div>
           </div>
         )
@@ -164,7 +197,7 @@ const ClassShowAnswers: FC<Props> = ({
             <div className="text-right mb-2">
               Total score: {data.checks.score}/{questions.total_points}
             </div>
-            <div hidden={showCompator}>
+            <div>
               {questions.questions.questions.map((value, index) => (
                 <fieldset key={index} className="card mb-4">
                   <legend className="card-legend capitalize flex justify-between items-end">
@@ -215,68 +248,6 @@ const ClassShowAnswers: FC<Props> = ({
                     Submit
                   </button>
                 </div>
-              ) : (
-                <></>
-              )}
-            </div>
-            <div hidden={!showCompator}>
-              {currentComparator ? (
-                <>
-                  <div className="w-full flex justify-end">
-                    <button
-                      type="button"
-                      className="text-red-500 flex-grow-0 w-fit h-auto outline-none"
-                      tabIndex={-1}
-                      onClick={() => {
-                        setShowCompator(false)
-                      }}
-                    >
-                      <XCircleIcon className="icon" />
-                    </button>
-                  </div>
-                  <div className="border border-dark rounded bg-slate-200 overflow-hidden shadow-sm mx-auto">
-                    <ReactCompareSlider
-                      itemOne={
-                        <ReactCompareSliderImage
-                          src={getFileURL(
-                            client,
-                            _aws.bucket,
-                            currentComparator.images[
-                              currentComparator.current.left
-                            ]
-                          )}
-                          style={{
-                            position: 'relative',
-                            ...currentComparator.styles.left,
-                          }}
-                        />
-                      }
-                      itemTwo={
-                        <ReactCompareSliderImage
-                          src={getFileURL(
-                            client,
-                            _aws.bucket,
-                            currentComparator.images[
-                              currentComparator.current.right
-                            ]
-                          )}
-                          style={{
-                            position: 'relative',
-                            ...currentComparator.styles.right,
-                          }}
-                        />
-                      }
-                      onlyHandleDraggable={true}
-                      handle={
-                        <ReactCompareSliderHandle
-                          buttonStyle={{ display: 'none' }}
-                          linesStyle={{ height: '100%', width: 3 }}
-                        />
-                      }
-                      position={currentComparator.position}
-                    />
-                  </div>
-                </>
               ) : (
                 <></>
               )}

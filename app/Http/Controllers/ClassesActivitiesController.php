@@ -108,6 +108,7 @@ class ClassesActivitiesController extends Controller
     {
         $activity = ClassesActivities::find(Hashids::decode($activity_id)[0]);
         $total_points = 0;
+
         $cached_answer = Cache::get('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
 
         foreach ($activity->questions as $question) {
@@ -137,16 +138,26 @@ class ClassesActivitiesController extends Controller
         if ($answer == null) {
             return redirect('/');
         }
-
-        $answer['data'][$answer_index]['answer']['select_mode'] = 'left';
-        if ($answer['data'][$answer_index]['answer']['essay'] == null) {
-            $answer['data'][$answer_index]['answer']['essay'] = '';
-        }
+/*
+$answer = [
+'data' => [
+0 => [
+0 => [
+'essay' => '',
+'image' => '',
+'isKey' => true,
+'filter' => 'none',
+],
+],
+],
+];
+ */
         return Inertia::render('Auth/Student/Comparator', [
             'id' => $class_id,
             'activity_id' => $activity_id,
             'answer_index' => $answer_index,
-            'state_comparator' => $answer['data'][$answer_index],
+            'state_annotation' => $answer['data'][$answer_index]['answer'],
+            'question' => fn() => ClassesActivities::find(Hashids::decode($activity_id)[0])->questions[$answer_index],
         ]);
     }
 }
