@@ -1,14 +1,14 @@
 import { FC, ChangeEvent } from 'react'
 import { useForm } from '@inertiajs/inertia-react'
-import TextInput from '@/Components/TextInput'
-import RadioGroup from '@/Components/RadioGroup'
-import CheckBox from '@/Components/CheckBox'
 import Auth, { User } from '@/Layouts/Auth'
+import { Container, Paper, Button, Checkbox } from '@mantine/core'
+import Input from '@/Components/Input'
+import Selection from '@/Components/Selection'
 
 type Props = {
   id: string
   username: string
-  role: string
+  role: 'admin' | 'instructor' | 'student'
 }
 
 const EditUser: FC<Props> = ({ id, username, role }) => {
@@ -25,7 +25,7 @@ const EditUser: FC<Props> = ({ id, username, role }) => {
         setData({ ...data, username: value })
         break
       case 'role':
-        setData({ ...data, role: value })
+        setData({ ...data, role: value as any })
         break
       case 'reset_password':
         setData({ ...data, reset_password: checked })
@@ -36,6 +36,61 @@ const EditUser: FC<Props> = ({ id, username, role }) => {
   }
 
   return (
+    <Auth title="Admin Edit User">
+      <Container size="xs">
+        <Paper shadow="xs" p="md" withBorder>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              post(`/user/edit/${id}`)
+            }}
+          >
+            <Input
+              textProps={{
+                label: 'Username',
+                name: 'username',
+                autoFocus: true,
+                value: data.username,
+                onChange: handleInputChange,
+              }}
+              error={{ value: errors.username }}
+            />
+            <Selection
+              selectProps={{
+                label: 'Role',
+                data: [
+                  { value: 'admin', label: 'Admin' },
+                  { value: 'instructor', label: 'Instructor' },
+                  { value: 'student', label: 'Student' },
+                ],
+                value: data.role,
+                searchable: true,
+                nothingFound: 'Invalid role',
+                onChange: (value) => {
+                  setData({ ...data, role: value as any })
+                },
+              }}
+            />
+            <Checkbox
+              value={data.reset_password ? 1 : 0}
+              label="Remember me"
+              onChange={handleInputChange}
+              style={{
+                width: 'fit-content',
+                marginLeft: 'auto',
+                marginBottom: '1rem',
+              }}
+            />
+            <Button type="submit" fullWidth loading={processing}>
+              Change
+            </Button>
+          </form>
+        </Paper>
+      </Container>
+    </Auth>
+  )
+
+  /*   return (
     <Auth title="Admin Edit User">
       <div className="container-lg py-4">
         <div className="font-light text-lg w-fit mx-auto mb-4">Create User</div>
@@ -79,7 +134,7 @@ const EditUser: FC<Props> = ({ id, username, role }) => {
         </form>
       </div>
     </Auth>
-  )
+  ) */
 }
 
 export default EditUser

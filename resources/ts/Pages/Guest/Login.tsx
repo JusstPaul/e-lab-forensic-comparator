@@ -1,8 +1,17 @@
 import { ChangeEvent } from 'react'
 import { useForm } from '@inertiajs/inertia-react'
-import TextInput from '@/Components/TextInput'
-import CheckBox from '@/Components/CheckBox'
 import Guest from '@/Layouts/Guest'
+import {
+  Button,
+  Center,
+  Checkbox,
+  Container,
+  Image,
+  LoadingOverlay,
+  Paper,
+  Text,
+} from '@mantine/core'
+import Input from '@/Components/Input'
 
 const Login = () => {
   const { data, setData, post, processing, errors } = useForm({
@@ -29,6 +38,88 @@ const Login = () => {
   }
 
   return (
+    <Guest title="Login">
+      <Container size="md">
+        <Center>
+          <div>
+            <Image
+              style={{
+                width: 100,
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                marginBottom: '1rem',
+              }}
+              src="/storage/assets/dccp-logo.png"
+            />
+            <Text
+              size="lg"
+              weight="300"
+              sx={(theme) => ({
+                marginBottom: '1rem',
+                textAlign: 'center',
+                color: theme.colors.gray[9],
+              })}
+            >
+              e-Lab Forensic Ballistics Login
+            </Text>
+
+            <Paper p="sm" withBorder>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  post('/login')
+                }}
+              >
+                <Input
+                  textProps={{
+                    label: 'Username',
+                    placeholder: 'username',
+                    name: 'username',
+                    value: data.username,
+                    onChange: handleInputChange,
+                    autoFocus: true,
+                  }}
+                  error={{
+                    value: errors.username,
+                  }}
+                />
+                <Input
+                  textProps={{
+                    label: 'Password',
+                    placeholder: 'password',
+                    name: 'password',
+                    type: 'password',
+                    value: data.password,
+                    onChange: handleInputChange,
+                  }}
+                  error={{
+                    value: errors.username,
+                    message: 'Invalid password.',
+                  }}
+                />
+                <Checkbox
+                  value={data.remember}
+                  label="Remember me"
+                  onChange={handleInputChange}
+                  style={{
+                    width: 'fit-content',
+                    marginLeft: 'auto',
+                    marginBottom: '1rem',
+                  }}
+                />
+
+                <Button type="submit" loading={processing} fullWidth>
+                  Login
+                </Button>
+              </form>
+            </Paper>
+          </div>
+        </Center>
+      </Container>
+    </Guest>
+  )
+
+  /*  return (
     <Guest title="Login">
       <div className="container-lg py-4">
         <p className="font-light text-lg w-fit mx-auto mb-4">
@@ -78,7 +169,7 @@ const Login = () => {
         </form>
       </div>
     </Guest>
-  )
+  ) */
 }
 
 export default Login

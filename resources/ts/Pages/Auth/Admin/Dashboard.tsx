@@ -1,10 +1,16 @@
-import { FC, useState } from 'react'
+import { FC } from 'react'
 import { Link } from '@inertiajs/inertia-react'
 import { PencilAltIcon, TrashIcon } from '@heroicons/react/solid'
-import Table from '@/Components/Table'
-import ConfirmDialog from '@/Components/ConfirmDialog'
 import Auth from '@/Layouts/Auth'
 import { Inertia } from '@inertiajs/inertia'
+import {
+  Container,
+  Table,
+  UnstyledButton,
+  Paper,
+  Highlight,
+} from '@mantine/core'
+import { useModals } from '@mantine/modals'
 
 type User = {
   id: string
@@ -17,60 +23,102 @@ type Props = {
 }
 
 const Dashboard: FC<Props> = ({ users }) => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [currentID, setCurrentID] = useState('')
+  const modals = useModals()
+  const modalMessage = (username: string) =>
+    `Are you sure you want to delete user '${username}'?`
+  const openConfirmModal = (username: string, id: string) =>
+    modals.openConfirmModal({
+      title: 'Confirm user delete',
+      children: (
+        <Highlight highlight={`'${username}'`}>
+          {modalMessage(username)}
+        </Highlight>
+      ),
+      labels: {
+        confirm: 'Confirm',
+        cancel: 'Cancel',
+      },
+      onConfirm: () =>
+        Inertia.post(`/user/delete/${id}`, undefined, {
+          onFinish: () => {
+            Inertia.visit('/admin/dashboard', {
+              only: ['users'],
+            })
+          },
+        }),
+      onCancel: () => {},
+      onClose: () => {},
+    })
 
   return (
-    <Auth title="Admin Dashboard">
-      <div className="md:grid grid-cols-6 h-full mx-2 mt-4">
-        <div></div>
-        <div className="col-span-4">
-          <Table title="Users">
+    <Auth
+      title="Admin Dashboard"
+      onModals={() => {
+        Inertia.visit('/admin/dashboard', {
+          only: ['users'],
+        })
+      }}
+    >
+      <Container
+        size="md"
+        style={{
+          paddingTop: '4rem',
+        }}
+      >
+        <Paper shadow="xs" p="sm" withBorder>
+          <Table striped>
             <thead>
               <tr>
-                <th className="table-header">Username</th>
-                <th className="table-header">Role</th>
-                <th className="table-header">Actions</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map((value, index) => (
                 <tr key={index}>
-                  <td className="table-data">{value.username}</td>
-                  <td className="table-data">{value.role}</td>
-                  <td className="table-data">
+                  <td>{value.username}</td>
+                  <td>{value.role}</td>
+                  <td>
                     <div className="flex gap-2">
-                      <Link href={`/user/edit/${value.id}`}>
-                        <PencilAltIcon className="icon text-teal-400" />
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCurrentID(value.id)
-                          setIsDialogOpen(true)
+                      <Link
+                        href={`/user/edit/${value.id}`}
+                        style={{
+                          color: '#20c997',
                         }}
                       >
-                        <TrashIcon className="icon text-rose-400" />
-                      </button>
+                        <PencilAltIcon
+                          className="icon text-teal-400"
+                          style={{
+                            width: '2rem',
+                            height: '2rem',
+                          }}
+                        />
+                      </Link>
+                      <UnstyledButton
+                        type="button"
+                        sx={(theme) => ({
+                          color: theme.colors.red[5],
+                        })}
+                        onClick={() => {
+                          openConfirmModal(value.username, value.id)
+                        }}
+                      >
+                        <TrashIcon
+                          style={{
+                            width: '2rem',
+                            height: '2rem',
+                          }}
+                        />
+                      </UnstyledButton>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </Table>
-          <ConfirmDialog
-            title="Delete user"
-            isOpen={isDialogOpen}
-            onClose={() => setIsDialogOpen(false)}
-            onConfirm={() => {
-              Inertia.post(`/user/delete/${currentID}`)
-            }}
-          >
-            Are you sure you want to delete this user?
-          </ConfirmDialog>
-        </div>
-        <div></div>
-      </div>
+        </Paper>
+      </Container>
     </Auth>
   )
 }

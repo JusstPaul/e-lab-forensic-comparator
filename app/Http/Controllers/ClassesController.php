@@ -20,8 +20,8 @@ class ClassesController extends Controller
             'section' => 'required|max:16',
             'room' => 'required|max:10',
             'day' => 'required|in:MWF,TTh,Sat',
-            'time_start' => 'required|date_format:H:i',
-            'time_end' => 'required|date_format:H:i|after:time_start',
+            'time_start' => 'required',
+            'time_end' => 'required|after:time_start',
         ]);
 
         $classes = new Classes;
@@ -62,8 +62,8 @@ class ClassesController extends Controller
             'section' => 'required|max:16',
             'room' => 'required|max:10',
             'day' => 'required|in:MWF,TTh,Sat',
-            'time_start' => 'required|date_format:H:i',
-            'time_end' => 'required|date_format:H:i|after:time_start',
+            'time_start' => 'required',
+            'time_end' => 'required|after:time_start',
         ]);
         $class = Classes::find(Hashids::decode($class_id)[0]);
         $class->code = $request->section;

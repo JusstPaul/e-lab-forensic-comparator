@@ -42,13 +42,15 @@ const ClassViewStudents: FC<Props> = ({ id, students }) => {
                   })
                 }}
               >
-                Delete Selected
+                Remove Selected
               </button>
             }
           >
             <thead>
               <tr>
-                <th className="table-header w-14"></th>
+                {_user.role == 'instructor' && (
+                  <th className="table-header w-14"></th>
+                )}
                 <th className="table-header">Student ID</th>
                 <th className="table-header">Name</th>
                 {_user.role == 'instructor' && (

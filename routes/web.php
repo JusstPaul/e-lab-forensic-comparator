@@ -36,12 +36,13 @@ Route::group(['middleware' => ['guest']], function () {
 Route::group(['middleware' => ['auth', 'role:admin']], function () {
     // GET
     Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
-    Route::get('/user/create', [AdminController::class, 'create'])->name('admin.user.create');
     Route::get('/user/edit/{user_id}', [UserController::class, 'edit']);
+    Route::get('/password/change', [AdminController::class, 'password']);
     // POST
     Route::post('/user/create', [UserController::class, 'store']);
     Route::post('/user/delete/{user_id}', [UserController::class, 'destroy']);
     Route::post('/user/edit/{user_id}', [UserController::class, 'update']);
+    Route::post('/password/change', [AdminController::class, 'password_update']);
 });
 
 // Role: Instructor

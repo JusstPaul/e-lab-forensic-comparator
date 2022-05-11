@@ -1,7 +1,14 @@
 import { FC, ChangeEvent } from 'react'
 import { useForm } from '@inertiajs/inertia-react'
-import TextInput from '@/Components/TextInput'
-import CheckBox from '@/Components/CheckBox'
+import {
+  Container,
+  Paper,
+  Group,
+  Checkbox,
+  Button,
+  Collapse,
+} from '@mantine/core'
+import Input from '@/Components/Input'
 import Auth from '@/Layouts/Auth'
 
 type Profile = {
@@ -77,6 +84,147 @@ const EditProfile: FC<Props> = ({ first, profile }) => {
   }
 
   return (
+    <Auth title="Edit Profile">
+      <Container size="sm">
+        <Paper shadow="xs" p="md" withBorder>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              post('/profile/edit')
+            }}
+          >
+            <Group>
+              <Input
+                textProps={{
+                  label: 'Last Name',
+                  name: 'last_name',
+                  placeholder: 'Last Name',
+                  autoFocus: true,
+                  value: data.last_name,
+                  onChange: handleInputChange,
+                }}
+                error={{
+                  value: errors.last_name,
+                  message: 'Please enter your last name',
+                }}
+              />
+
+              <Input
+                textProps={{
+                  label: 'First Name',
+                  name: 'first_name',
+                  placeholder: 'First Name',
+                  value: data.first_name,
+                  onChange: handleInputChange,
+                }}
+                error={{
+                  value: errors.first_name,
+                  message: 'Please enter your first name',
+                }}
+              />
+              <Input
+                textProps={{
+                  label: 'Middle Name',
+                  placeholder: 'Middle Name',
+                  name: 'middle_name',
+                  value: data.middle_name,
+                  onChange: handleInputChange,
+                }}
+                error={{
+                  value: errors.middle_name,
+                  message: 'Please enter your middle name',
+                }}
+              />
+            </Group>
+            <Group>
+              <Input
+                textProps={{
+                  label: 'Contact',
+                  name: 'contact',
+                  placeholder: '09*********',
+                  value: data.contact,
+                  onChange: handleInputChange,
+                }}
+                error={{
+                  value: errors.contact,
+                  message: 'Please enter your contact number',
+                }}
+              />
+            </Group>
+            <Checkbox
+              value={data.password_change ? 1 : 0}
+              label="Change Password"
+              name="password_change"
+              onChange={handleInputChange}
+              disabled={first}
+              style={{
+                width: 'fit-content',
+                marginLeft: 'auto',
+                marginBottom: '1rem',
+              }}
+            />
+            <Collapse in={data.password_change == 1}>
+              <Group>
+                <Input
+                  textProps={{
+                    label: 'Current Password',
+                    type: 'password',
+                    name: 'password_current',
+                    value: data.password_current,
+                    onChange: handleInputChange,
+                  }}
+                  error={{
+                    value: errors.password_current,
+                    message: 'Please enter your current password',
+                  }}
+                />
+              </Group>
+
+              <Group>
+                <Input
+                  textProps={{
+                    label: 'New Password',
+                    type: 'password',
+                    name: 'password_new',
+                    value: data.password_new,
+                    onChange: handleInputChange,
+                  }}
+                  error={{
+                    value: errors.password_new,
+                    message: 'Please enter your new password',
+                  }}
+                />
+
+                <Input
+                  textProps={{
+                    label: 'Confirm New Password',
+                    type: 'password',
+                    name: 'password_new_confirmation',
+                    value: data.password_new_confirmation,
+                    onChange: handleInputChange,
+                  }}
+                  error={{
+                    value: errors.password_new_confirmation,
+                    message: 'Please confirm your new password',
+                  }}
+                />
+              </Group>
+            </Collapse>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <Button type="submit">Change</Button>
+            </div>
+          </form>
+        </Paper>
+      </Container>
+    </Auth>
+  )
+
+  /*  return (
     <Auth>
       <div className="pt-4 container-lg">
         <p className="font-light text-lg w-fit mx-auto mb-4">Edit Profile</p>
@@ -193,7 +341,7 @@ const EditProfile: FC<Props> = ({ first, profile }) => {
         </form>
       </div>
     </Auth>
-  )
+  ) */
 }
 
 export default EditProfile
