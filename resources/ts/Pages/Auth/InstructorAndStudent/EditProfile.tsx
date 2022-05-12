@@ -157,6 +157,7 @@ const EditProfile: FC<Props> = ({ first, profile }) => {
               name="password_change"
               onChange={handleInputChange}
               disabled={first}
+              defaultChecked={first}
               style={{
                 width: 'fit-content',
                 marginLeft: 'auto',

@@ -9,8 +9,10 @@ import {
   UnstyledButton,
   Paper,
   Highlight,
+  SimpleGrid,
 } from '@mantine/core'
 import { useModals } from '@mantine/modals'
+import useStyles from '@/Lib/styles'
 
 type User = {
   id: string
@@ -50,6 +52,8 @@ const Dashboard: FC<Props> = ({ users }) => {
       onClose: () => {},
     })
 
+  const classes = useStyles()
+
   return (
     <Auth
       title="Admin Dashboard"
@@ -79,39 +83,27 @@ const Dashboard: FC<Props> = ({ users }) => {
                 <tr key={index}>
                   <td>{value.username}</td>
                   <td>{value.role}</td>
-                  <td>
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/user/edit/${value.id}`}
-                        style={{
-                          color: '#20c997',
-                        }}
-                      >
-                        <PencilAltIcon
-                          className="icon text-teal-400"
-                          style={{
-                            width: '2rem',
-                            height: '2rem',
-                          }}
-                        />
-                      </Link>
-                      <UnstyledButton
-                        type="button"
-                        sx={(theme) => ({
-                          color: theme.colors.red[5],
-                        })}
-                        onClick={() => {
-                          openConfirmModal(value.username, value.id)
-                        }}
-                      >
-                        <TrashIcon
-                          style={{
-                            width: '2rem',
-                            height: '2rem',
-                          }}
-                        />
-                      </UnstyledButton>
-                    </div>
+                  <td style={{ display: 'flex', columnGap: '1rem' }}>
+                    <Link
+                      href={`/user/edit/${value.id}`}
+                      className={classes.classes.link}
+                      style={{
+                        color: '#20c997',
+                      }}
+                    >
+                      <PencilAltIcon className={classes.classes.icon} />
+                    </Link>
+                    <UnstyledButton
+                      type="button"
+                      sx={(theme) => ({
+                        color: theme.colors.red[5],
+                      })}
+                      onClick={() => {
+                        openConfirmModal(value.username, value.id)
+                      }}
+                    >
+                      <TrashIcon className={classes.classes.icon} />
+                    </UnstyledButton>
                   </td>
                 </tr>
               ))}

@@ -1,10 +1,26 @@
-import { FC } from 'react'
+import { FC, useState, Fragment, useEffect } from 'react'
 import { usePage, useForm, Link } from '@inertiajs/inertia-react'
+import {
+  Box,
+  Stack,
+  Button,
+  Container,
+  Text,
+  Divider,
+  Paper,
+  Menu,
+  Tabs,
+  Table,
+} from '@mantine/core'
+import Upload from 'rc-upload'
 import { User } from '@/Layouts/Auth'
-import Class from '@/Layouts/Class'
+import Auth from '@/Layouts/Auth'
 import Editor from '@/Components/Editor'
 import FileInput from '@/Components/FileInput'
 import Error from '@/Components/Error'
+import { Inertia } from '@inertiajs/inertia'
+import useStyle from '@/Lib/styles'
+import moment from 'moment'
 
 type Classes = {
   id: string
@@ -15,6 +31,31 @@ type Classes = {
   time_start: string
 }
 
+type Student = {
+  id: string
+  username: string
+  name: string
+}
+
+type ActivityStatus = {
+  id?: string
+  type?: string
+  title: string
+  score: string
+  is_late: boolean
+}
+
+type StudentWithActivities = {
+  student: Student
+  exams: Array<ActivityStatus>
+  assignments: Array<ActivityStatus>
+}
+
+type ProgressProps = {
+  students?: Array<Student>
+  current_student?: StudentWithActivities
+}
+
 type Props = {
   classes: Classes
   cards?: Array<{
@@ -23,9 +64,16 @@ type Props = {
     link: string
     created_at: string
   }>
+  progress: ProgressProps
+  initial_active?: number
 }
 
-const ClassOverview: FC<Props> = ({ classes, cards }) => {
+const ClassOverview: FC<Props> = ({
+  classes,
+  cards,
+  progress,
+  initial_active,
+}) => {
   const { user } = usePage().props
   const _user = user as User
 
@@ -37,97 +85,294 @@ const ClassOverview: FC<Props> = ({ classes, cards }) => {
     files: null,
   })
 
+  const [progressViewMode, setProgressViewMode] = useState<
+    'Exams' | 'Assignment'
+  >('Exams')
+
+  const _classes = useStyle()
+
+  const renderScore = (score: string) => {
+    if (score == 'Submitted') {
+      return <span className="text-green-500">{score}</span>
+    } else if (score == 'None') {
+      return <span className="text-red-500">{score}</span>
+    }
+
+    return <span>{score}</span>
+  }
+
   return (
-    <Class mode={0} id={classes.id}>
-      <div className="w-full">
-        <div className="flex justify-center my-4 md:my-8 w-full px-2 md:px-8">
-          <div className="w-full banner px-2 py-2 md:px-4 md:py-8 rounded-md shadoe-sm">
-            <div className="bg-primary mr-auto w-fit px-2 py rounded-md shadow-sm">
-              <div className="font-semibold text-xl">{classes.code}</div>
-              <div className="text-sm">
-                <span>{classes.day} </span>
-                <span>{classes.time_start} </span>
-                {' to '}
-                <span>{classes.time_end} </span>
+    <Auth class_id={classes.id}>
+      <Tabs grow position="center" initialTab={initial_active}>
+        <Tabs.Tab label="Overview">
+          <Stack
+            p="lg"
+            align="flex-start"
+            justify="flex-end"
+            sx={(theme) => ({
+              backgroundImage: 'url("/storage/assets/banner.jpg")',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center center',
+              backgroundSize: 'cover',
+              filter: 'contrast("110%")',
+              borderRadius: theme.radius.md,
+              height: 200,
+            })}
+          >
+            <div className="w-full banner px-2 py-2 md:px-4 md:py-8 rounded-md shadoe-sm">
+              <div className="bg-primary mr-auto w-fit px-2 py rounded-md shadow-sm">
+                <Text
+                  color="#ffffff"
+                  weight="bold"
+                  sx={(theme) => ({
+                    textShadow: theme.shadows.xs,
+                  })}
+                >
+                  {classes.code}
+                </Text>
+
+                <Text
+                  color="#ffffff"
+                  weight="bold"
+                  sx={(theme) => ({
+                    textShadow: theme.shadows.xs,
+                  })}
+                >
+                  {classes.day}{' '}
+                  {moment(new Date(classes.time_start)).format('h:mm a')}{' '}
+                  {moment(new Date(classes.time_end)).format('h:mm a')}
+                </Text>
+                <Text
+                  color="#ffffff"
+                  weight="bold"
+                  sx={(theme) => ({
+                    textShadow: theme.shadows.xs,
+                  })}
+                >
+                  {classes.instructor_name}
+                </Text>
               </div>
             </div>
-            <div className="text-md mt-4 bg-primary w-fit px-2 py shadow-sm rounded-md">
-              {classes.instructor_name}
-            </div>
-          </div>
-        </div>
-        <div>
-          {_user.role == 'instructor' ? (
-            <>
-              <form
-                className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  post(`/class/${classes.id}/announcement/create`, {
-                    _method: 'put',
-                    onSuccess: () => {
-                      window.location.reload()
-                    },
-                  } as any)
-                }}
-                encType="multipart/form-data"
-              >
-                <Editor
-                  name="announcement"
-                  placeholder="Set announcements here..."
-                  onChange={(content) => {
-                    setData({ ...data, text: content })
+          </Stack>
+          <div>
+            {_user.role == 'instructor' ? (
+              <Container size="md" mt="lg">
+                <form
+                  className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    post(`/class/${classes.id}/announcement/create`, {
+                      _method: 'put',
+                      onSuccess: () => {
+                        Inertia.visit(`/class/overview/${classes.id}`, {
+                          only: ['cards'],
+                        })
+                      },
+                    } as any)
                   }}
-                />
-                <div className="mt-4 md:flex justify-between">
-                  <div className="flex md:justify-start justify-center">
-                    <Error value={errors.files} />
-                    <Error value={errors.text} />
-                  </div>
-                  <div className="flex justify-end gap-2 md:gap-4">
-                    <FileInput
-                      multiple
-                      label="Attachments"
-                      name="announcement-file"
-                      onChange={(event) => {
-                        setData({ ...data, files: event.target.files })
+                  encType="multipart/form-data"
+                >
+                  <Editor
+                    name="announcement"
+                    placeholder="Set announcements here..."
+                    setContents={data.text}
+                    onChange={(content) => {
+                      setData({ ...data, text: content })
+                    }}
+                  />
+                  <Box
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Stack justify="center">
+                      <Error value={errors.files} />
+                      <Error value={errors.text} />
+                    </Stack>
+                    <Box
+                      mt="md"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        columnGap: '1rem',
+                        alignItems: 'center',
                       }}
-                    />
-                    <button className="btn-primary">Post</button>
-                  </div>
-                </div>
-              </form>
-            </>
-          ) : (
-            <></>
-          )}
-        </div>
-        <div className="w-full md:w-5/12 mx-auto pb-32 md:pb-16">
-          <div className="divide-y divide-slate-200">
-            <span>Announcements</span>
-            <div></div>
+                    >
+                      <input
+                        type="file"
+                        multiple
+                        onChange={(event) =>
+                          setData({ ...data, files: event.target.files })
+                        }
+                      />
+                      <Button type="submit" loading={processing}>
+                        Post
+                      </Button>
+                    </Box>
+                  </Box>
+                </form>
+              </Container>
+            ) : (
+              <></>
+            )}
           </div>
-          {cards ? (
-            <>
-              {cards.map((value, index) => (
-                <div key={index} className="card my-4">
-                  <div className="capitalize prose font-semibold">
-                    {value.type}
-                  </div>
-                  <Link
-                    className="prose"
-                    dangerouslySetInnerHTML={{ __html: value.display }}
-                    href={value.link}
-                  ></Link>
-                </div>
-              ))}
-            </>
-          ) : (
-            <></>
-          )}
-        </div>
-      </div>
-    </Class>
+          <Container size="md">
+            <Divider my="md" label="Announcements" />
+            {cards ? (
+              <>
+                {cards.map((value, index) => (
+                  <Paper p="md" key={index}>
+                    <Box
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Text size="md" transform="capitalize">
+                        {value.type}
+                      </Text>
+
+                      {_user.role == 'instructor' ? (
+                        <Menu>
+                          <Menu.Item>Edit</Menu.Item>
+                          <Menu.Item>Delete</Menu.Item>
+                        </Menu>
+                      ) : (
+                        <></>
+                      )}
+                    </Box>
+                    <Link
+                      className={_classes.classes.link}
+                      dangerouslySetInnerHTML={{ __html: value.display }}
+                      href={value.link}
+                    ></Link>
+                  </Paper>
+                ))}
+              </>
+            ) : (
+              <></>
+            )}
+          </Container>
+        </Tabs.Tab>
+        <Tabs.Tab label="Students"></Tabs.Tab>
+        <Tabs.Tab label="Progress">
+          <Container style={{ display: 'flex' }}>
+            <Stack style={{ flexGrow: 0 }}>
+              <Text weight="bold">Students</Text>
+              {_user.role == 'instructor' ? (
+                <>
+                  {progress.students != undefined ? (
+                    <>
+                      {progress.students.map((value, index) => (
+                        <Fragment key={index}>
+                          <Link
+                            href={`/class/overview/${classes.id}/${2}/${
+                              value.id
+                            }`}
+                            className={_classes.classes.link}
+                          >
+                            <span className="w-max">{value.name}</span>
+                          </Link>
+                        </Fragment>
+                      ))}
+                    </>
+                  ) : (
+                    <></>
+                  )}
+                </>
+              ) : (
+                <></>
+              )}
+            </Stack>
+            <Container size="md">
+              {progress.current_student != undefined ? (
+                <Paper shadow="xs" p="sm" withBorder>
+                  <Table>
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Score</th>
+                        <th>Is On Time</th>
+                      </tr>
+                    </thead>
+                    {progressViewMode == 'Assignment' ? (
+                      <tbody>
+                        {progress.current_student.assignments.map(
+                          (value, index) => (
+                            <tr key={index}>
+                              <td className="table-data">
+                                {value.id != undefined ? (
+                                  <Link
+                                    href={`/class/overview/${classes.id}/${2}/${
+                                      value.id
+                                    }/${progress.current_student!.student.id}`}
+                                    className={_classes.classes.link}
+                                    only={['current_student']}
+                                  >
+                                    {value.title}
+                                  </Link>
+                                ) : (
+                                  <span>{value.title}</span>
+                                )}
+                              </td>
+                              <td className="table-data">
+                                {renderScore(value.score)}
+                              </td>
+                              <td className="table-data">
+                                {value.is_late ? (
+                                  <span className="text-red-500">No</span>
+                                ) : (
+                                  <span className="text-green-500">Yes</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    ) : (
+                      <tbody>
+                        {progress.current_student.exams.map((value, index) => (
+                          <tr key={index}>
+                            <td className="table-data">
+                              {value.id != undefined ? (
+                                <Link
+                                  href={`/class/overview/${2}/${classes.id}/${
+                                    value.id
+                                  }/${progress.current_student!.student.id}`}
+                                  className={_classes.classes.link}
+                                  only={['current_student']}
+                                >
+                                  {value.title}
+                                </Link>
+                              ) : (
+                                <span>{value.title}</span>
+                              )}
+                            </td>
+                            <td className="table-data">
+                              {renderScore(value.score)}
+                            </td>
+                            <td className="table-data">
+                              {value.is_late ? (
+                                <span className="text-red-500">No</span>
+                              ) : (
+                                <span className="text-green-500">Yes</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    )}
+                  </Table>
+                </Paper>
+              ) : (
+                <></>
+              )}
+            </Container>
+          </Container>
+        </Tabs.Tab>
+      </Tabs>
+    </Auth>
   )
 }
 

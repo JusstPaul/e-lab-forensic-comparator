@@ -14,7 +14,6 @@ class ProfileController extends Controller
         $request->validate([
             'last_name' => 'required',
             'first_name' => 'required',
-            'middle_name' => 'required',
             'contact' => 'required|min:10|regex:/^09[0-9]+$/',
             'password_change' => 'required|boolean',
             'password_current' => 'required_if:password_change,1|current_password|nullable',

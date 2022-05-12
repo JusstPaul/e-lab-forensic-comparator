@@ -73,7 +73,8 @@ const EditUser: FC<Props> = ({ id, username, role }) => {
             />
             <Checkbox
               value={data.reset_password ? 1 : 0}
-              label="Remember me"
+              label="Reset password"
+              name="reset_password"
               onChange={handleInputChange}
               style={{
                 width: 'fit-content',

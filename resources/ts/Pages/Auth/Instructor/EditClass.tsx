@@ -1,8 +1,10 @@
 import { FC, ChangeEvent } from 'react'
 import { useForm } from '@inertiajs/inertia-react'
-import TextInput from '@/Components/TextInput'
-import Select from '@/Components/Select'
 import Auth from '@/Layouts/Auth'
+import Input from '@/Components/Input'
+import Selection from '@/Components/Selection'
+import Time from '@/Components/Time'
+import { Container, Paper, Stack, Text, Group, Button } from '@mantine/core'
 
 type Props = {
   id: string
@@ -25,8 +27,8 @@ const EditClass: FC<Props> = ({
     section: section,
     room: room,
     day: day,
-    time_start: time_start,
-    time_end: time_end,
+    time_start: new Date(time_start),
+    time_end: new Date(time_end),
   })
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -39,80 +41,103 @@ const EditClass: FC<Props> = ({
       case 'room':
         setData({ ...data, room: value })
         break
-      case 'time_start':
-        setData({ ...data, time_start: value })
-        break
-      case 'time_end':
-        setData({ ...data, time_end: value })
-        break
     }
   }
 
   return (
-    <Auth>
-      <div className="container-lg py-4">
-        <div className="font-light text-lg w-fit mx-auto mb-4">Edit Class</div>
-        <form
-          className="card w-fit mx-auto"
-          onSubmit={(event) => {
-            event.preventDefault()
-            post(`/class/edit/${id}`)
-          }}
-        >
-          <TextInput
-            label="Section Code"
-            name="section"
-            value={data.section}
-            error={{ value: errors.section }}
-            onChange={handleInputChange}
-            isFocused
-          />
-          <fieldset className="md:grid grid-cols-2 gap-2">
-            <TextInput
-              label="Room"
-              name="room"
-              value={data.room}
-              error={{ value: errors.room }}
-              className="mb-2 md:mb-4"
-              onChange={handleInputChange}
-            />
-            <Select
-              label="Day"
-              name="day"
-              options={['MWF', 'TTh', 'Sat']}
-              onChange={(event) =>
-                setData({ ...data, day: event.target.value })
-              }
-            />
-            <TextInput
-              type="time"
-              label="Time Start"
-              name="time_start"
-              value={data.time_start}
-              error={{ value: errors.time_start }}
-              className="mb-2 md:mb-4"
-              onChange={handleInputChange}
-            />
-            <TextInput
-              type="time"
-              label="Time End"
-              name="time_end"
-              value={data.time_end}
-              error={{
-                value: errors.time_end,
-                message: 'Time end must be a time after time start',
+    <Auth title="Edit Class">
+      <Container size="xs">
+        <Stack>
+          <Text align="center" size="lg">
+            Edit Class
+          </Text>
+          <Paper p="sm" withBorder>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                post(`/class/edit/${id}`)
               }}
-              onChange={handleInputChange}
-            />
-          </fieldset>
-          <fieldset></fieldset>
-          <div className="w-full md:w-fit md:ml-auto">
-            <button className="btn-primary w-full" disabled={processing}>
-              Submit
-            </button>
-          </div>
-        </form>
-      </div>
+            >
+              <Input
+                textProps={{
+                  label: 'Section',
+                  placeholder: 'Section',
+                  value: data.section,
+                  name: 'section',
+                  onChange: handleInputChange,
+                }}
+                error={{ value: errors.section }}
+              />
+              <Group>
+                <Input
+                  textProps={{
+                    label: 'Room',
+                    name: 'room',
+                    value: data.room,
+                    onChange: handleInputChange,
+                  }}
+                  error={{ value: errors.room }}
+                />
+              </Group>
+              <Group>
+                <Selection
+                  selectProps={{
+                    label: 'Day',
+                    name: 'day',
+                    data: [
+                      { value: 'MWF', label: 'MWF' },
+                      { value: 'TTh', label: 'TTh' },
+                      { value: 'Sat', label: 'Sat' },
+                    ],
+                    value: data.day,
+                    searchable: true,
+                    nothingFound: 'Invalid schedule day',
+                    onChange: (value) => {
+                      setData({ ...data, day: value as any })
+                    },
+                  }}
+                  error={{
+                    value: errors.day,
+                    message: 'Must be a valid schedule day.',
+                  }}
+                />
+                <Group>
+                  <Time
+                    timeProps={{
+                      label: 'Time Start',
+                      name: 'time_start',
+                      value: data.time_start,
+                      onChange: (value) =>
+                        setData({ ...data, time_start: value }),
+                    }}
+                    error={{
+                      value: errors.time_start,
+                      message: 'Please enter valid starting time.',
+                    }}
+                  />
+                  <Time
+                    timeProps={{
+                      label: 'Time End',
+                      name: 'time_end',
+                      value: data.time_end,
+                      onChange: (value) =>
+                        setData({ ...data, time_end: value }),
+                    }}
+                    error={{
+                      value: errors.time_end,
+                      message: 'Please enter valid ending time.',
+                    }}
+                  />
+                </Group>
+              </Group>
+
+              <Button type="submit" fullWidth>
+                Update
+              </Button>
+            </form>
+          </Paper>
+        </Stack>
+      </Container>
     </Auth>
   )
 }

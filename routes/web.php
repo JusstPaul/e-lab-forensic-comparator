@@ -84,7 +84,7 @@ Route::group(['middleware', ['auth', 'role:student']], function () {
 // Role: Instructor and Student
 Route::group(['middleware' => ['auth', 'role:instructor|student']], function () {
     // GET
-    Route::get('/class/overview/{class_id}', [ClassesController::class, 'index'])->name('class.overview');
+    Route::get('/class/overview/{class_id}/{active?}/{student_id?}/{activity_id?}', [ClassesController::class, 'index'])->name('class.overview');
     Route::get('/class/{class_id}/overview/progress/{student_id?}/{activity_id?}', [ClassesController::class, 'view_progress'])->name('class.overview.progress');
     Route::get('/profile/edit', [ProfileController::class, 'index'])->name('user.profile.edit');
     Route::get('/class/{class_id}/students/view', [ClassesController::class, 'view_students'])->name('class.students.view');

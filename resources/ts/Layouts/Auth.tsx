@@ -15,12 +15,15 @@ import {
   Burger,
   MediaQuery,
   Group,
+  Stack,
+  Center,
 } from '@mantine/core'
 import { useDisclosure, useMediaQuery } from '@mantine/hooks'
 import { PlusIcon, MenuIcon, ChevronDownIcon } from '@heroicons/react/outline'
 import Input from '@/Components/Input'
 import Selection from '@/Components/Selection'
 import Time from '@/Components/Time'
+import useStyle from '@/Lib/styles'
 
 type SideBarSectionElements = {
   display: string
@@ -235,8 +238,12 @@ const Auth = ({ title, class_id, onModals, children }: Props) => {
 
   const atLeastMd = useMediaQuery('(min-width: 992px)')
 
+  const { url } = usePage()
+
   const { user } = usePage().props
   const _user = user as User
+
+  const classes = useStyle()
 
   return (
     <>
@@ -252,9 +259,13 @@ const Auth = ({ title, class_id, onModals, children }: Props) => {
         })}
         navbarOffsetBreakpoint="sm"
         navbar={
-          _user.role == 'instructor' || _user.role == 'student' ? (
+          url !== '/no-class-yet' &&
+          _user.name &&
+          _user.name.length > 0 &&
+          (_user.role == 'instructor' || _user.role == 'student') ? (
             <Navbar
               p="xs"
+              pt="lg"
               sx={(theme) => ({
                 borderRightWidth: '1px',
                 borderRightColor: theme.colors.gray[3],
@@ -268,57 +279,45 @@ const Auth = ({ title, class_id, onModals, children }: Props) => {
                 <>
                   {class_id ? (
                     <Navbar.Section>
-                      <Link
-                        href={`/class/${class_id}/students/add`}
-                        style={{
-                          textDecoration: 'none',
-                          color: '#212529',
-                          display: 'flex',
-                          alignItems: 'center',
-                          columnGap: '0.5rem',
-                          marginBottom: '1rem',
-                        }}
-                      >
-                        <UserAddIcon
-                          style={{
-                            width: '2rem',
-                            height: '2rem',
-                          }}
-                        />
-                        <span>Add Students</span>
-                      </Link>
-                      <Link
-                        href={`/class/${class_id}/activity/create`}
-                        style={{
-                          textDecoration: 'none',
-                          color: '#212529',
-                          display: 'flex',
-                          alignItems: 'center',
-                          columnGap: '0.5rem',
-                        }}
-                      >
-                        <PlusIcon
-                          style={{
-                            width: '2rem',
-                            height: '2rem',
-                          }}
-                        />
-                        <span>Add Task</span>
-                      </Link>
+                      <Center>
+                        <Stack>
+                          <Link
+                            href={`/class/${class_id}/students/add`}
+                            className={classes.classes.link}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              columnGap: '1rem',
+                            }}
+                          >
+                            <UserAddIcon className={classes.classes.icon} />
+                            <span>Add Students</span>
+                          </Link>
+                          <Link
+                            href={`/class/${class_id}/activity/create`}
+                            className={classes.classes.link}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              columnGap: '1rem',
+                            }}
+                          >
+                            <PlusIcon className={classes.classes.icon} />
+                            <span>Add Task</span>
+                          </Link>
+                        </Stack>
+                      </Center>
                     </Navbar.Section>
                   ) : (
                     <Navbar.Section>
-                      <UnstyledButton
-                        onClick={() => setIsCreateClassOpen(true)}
-                      >
-                        <PlusIcon
-                          style={{
-                            width: '2rem',
-                            height: '2rem',
-                          }}
-                        />
-                        <Text>Create Class</Text>
-                      </UnstyledButton>
+                      <Stack>
+                        <UnstyledButton
+                          onClick={() => setIsCreateClassOpen(true)}
+                        >
+                          <PlusIcon className={classes.classes.icon} />
+                          <Text>Create Class</Text>
+                        </UnstyledButton>
+                      </Stack>
                     </Navbar.Section>
                   )}
                 </>

@@ -2,7 +2,6 @@ import { PropsWithChildren } from 'react'
 import { Link, usePage } from '@inertiajs/inertia-react'
 import Auth, { User } from './Auth'
 import { Container, Grid } from '@mantine/core'
-import { CSSProperties } from '@mantine/styles/lib/tss/types/css-object'
 
 type Props = PropsWithChildren<{
   mode: 0 | 1 | 2 | 3

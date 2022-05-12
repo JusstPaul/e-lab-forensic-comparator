@@ -14,7 +14,7 @@ const Time: FC<Props> = ({ error, timeProps }) => (
       marginBottom: '1rem',
     })}
   >
-    <TimeInput {...timeProps} />
+    <TimeInput format="12" {...timeProps} />
     {error ? <Error value={error.value} message={error.message} /> : <></>}
   </Box>
 )
