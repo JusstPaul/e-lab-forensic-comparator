@@ -161,7 +161,7 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
             {students != undefined ? (
               <>
                 {students.map((value, index) => (
-                  <Fragment key={index}>
+                  <div key={index}>
                     <Link
                       href={`/class/${id}/overview/progress/${value.id}`}
                       only={['current_student']}
@@ -171,7 +171,7 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
                     >
                       <span className="w-max">{value.name}</span>
                     </Link>
-                  </Fragment>
+                  </div>
                 ))}
               </>
             ) : (
