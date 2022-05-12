@@ -13,7 +13,7 @@ class ActivitiesChecksController extends Controller
         $request->validate([
             'checks.score' => 'required|numeric',
             'checks.checks' => 'required|array',
-            'checks.checks.*' => 'boolean',
+            'checks.checks.*' => 'array',
         ]);
         $answer = ActivitiesAnswer::where('activity_id', Hashids::decode($activity_id)[0])
             ->where('student_id', Hashids::decode($student_id)[0])
@@ -25,6 +25,7 @@ class ActivitiesChecksController extends Controller
             'score' => $request->checks['score'],
             'checks' => $request->checks['checks'],
             'is_checked' => true,
+            'comments' => [],
         ]);
 
         return redirect()->route('class.overview.progress', [

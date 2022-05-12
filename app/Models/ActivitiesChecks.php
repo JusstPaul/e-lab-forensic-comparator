@@ -13,10 +13,12 @@ class ActivitiesChecks extends Model
         'score',
         'checks',
         'is_checked',
+        'comments',
     ];
 
     protected $casts = [
         'checks' => 'array',
+        'comments' => 'array',
     ];
 
     public function answers()

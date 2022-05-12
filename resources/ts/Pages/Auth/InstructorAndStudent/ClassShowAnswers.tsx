@@ -10,13 +10,20 @@ import Class from '@/Layouts/Class'
 import { User } from '@/Layouts/Auth'
 import moment from 'moment'
 import CheckBox from '@/Components/CheckBox'
-import { XCircleIcon } from '@heroicons/react/solid'
+import TextInput from '@/Components/TextInput'
+import { AnnotationIcon, XCircleIcon } from '@heroicons/react/solid'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import { Annotation, AnnotationsState } from '../Student/Comparator'
+import { Popover, ArrowContainer } from 'react-tiny-popover'
 
 type CheckState = {
   score: number
-  checks: Array<boolean>
+  checks: Array<{
+    isChecked: boolean
+    points: number
+    comment: string
+    hasComment: boolean
+  }>
 }
 
 type Props = {
@@ -61,7 +68,12 @@ const ClassShowAnswers: FC<Props> = ({
       return {
         score: 0,
         checks: questions.questions.questions.map((_) => {
-          return false
+          return {
+            isChecked: false,
+            points: 0,
+            hasComment: false,
+            comment: '',
+          }
         }),
       } as CheckState
     }
@@ -69,8 +81,12 @@ const ClassShowAnswers: FC<Props> = ({
     return answers.checks
   }
 
-  const { data, setData, post, processing, errors } = useForm({
+  const { data, setData, post, processing, errors } = useForm<{
+    checks: CheckState
+    comments: Array<string>
+  }>({
     checks: initializeScores(),
+    comments: [],
   })
 
   const renderQuestionItem = (index: number) => {
@@ -182,7 +198,7 @@ const ClassShowAnswers: FC<Props> = ({
         </p>
         <div className="">
           <form
-            className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
+            className="w-fit min-w-[45%] mx-auto pb-32 md:pb-16"
             onSubmit={(event) => {
               event.preventDefault()
               post(`/class/${id}/activity/${activity_id}/show/${student_id}`)
@@ -200,42 +216,140 @@ const ClassShowAnswers: FC<Props> = ({
             <div>
               {questions.questions.questions.map((value, index) => (
                 <fieldset key={index} className="card mb-4">
-                  <legend className="card-legend capitalize flex justify-between items-end">
+                  <legend className="card-legend capitalize flex justify-between items-end ">
                     <span>
                       {index + 1}. {value.type}
                     </span>
-                    {value.points > 0 && (
-                      <span className="h-full">
-                        <div className="flex gap-4">
-                          <div>
-                            <span className="text-sm">
-                              {value.points}{' '}
-                              {value.points > 1 ? <>Points</> : <>Point</>}
-                            </span>
+                    <div>
+                      {value.points > 0 && (
+                        <span className="h-full">
+                          <div className="flex gap-4">
+                            <div>
+                              <span className="text-sm">
+                                {value.points}{' '}
+                                {value.points > 1 ? <>Points</> : <>Point</>}
+                              </span>
+                            </div>
+                            {!(value.points > 1) ? (
+                              <CheckBox
+                                name="check"
+                                className="mb-0"
+                                defaultChecked={
+                                  data.checks.checks[index].isChecked
+                                }
+                                value={data.checks.checks[index] ? 1 : 0}
+                                disabled={_user.role == 'student'}
+                                onChange={(event) => {
+                                  const { checked } = event.target
+                                  let nChecked = data.checks
+                                  nChecked.checks[index].isChecked = checked
+                                  nChecked.checks[index].points = parseInt(
+                                    value.points as any
+                                  )
+
+                                  if (checked) {
+                                    nChecked.score += parseInt(
+                                      value.points as any
+                                    )
+                                  } else {
+                                    nChecked.score -= parseInt(
+                                      value.points as any
+                                    )
+                                  }
+
+                                  setData({ ...data, checks: nChecked })
+                                }}
+                              />
+                            ) : _user.role == 'instructor' ? (
+                              <TextInput
+                                name="check-input"
+                                noLabel
+                                value={data.checks.checks[
+                                  index
+                                ].points.toString()}
+                                onChange={(event) => {
+                                  const { value: val } = event.target
+
+                                  const nPoint = parseInt(val == '' ? '0' : val)
+                                  if (
+                                    nPoint <= parseInt(value.points as any) &&
+                                    nPoint >= 0
+                                  ) {
+                                    let nChecked = data.checks
+                                    nChecked.score -=
+                                      nChecked.checks[index].points
+                                    nChecked.checks[index].isChecked = true
+                                    nChecked.checks[index].points = nPoint
+                                    nChecked.score += nPoint
+
+                                    setData({ ...data, checks: nChecked })
+                                  }
+                                }}
+                                className="w-12 mb-0"
+                              />
+                            ) : (
+                              <span>
+                                / {data.checks.checks[index].points} Points
+                              </span>
+                            )}
+                            <Popover
+                              isOpen={data.checks.checks[index].hasComment}
+                              padding={10}
+                              positions={['right']}
+                              content={({
+                                position,
+                                childRect,
+                                popoverRect,
+                              }) => (
+                                <ArrowContainer
+                                  position={position}
+                                  childRect={childRect}
+                                  popoverRect={popoverRect}
+                                  arrowSize={10}
+                                  arrowColor={'white'}
+                                  className="card"
+                                >
+                                  {_user.role == 'instructor' ? (
+                                    <textarea
+                                      className="rounded-sm"
+                                      value={data.checks.checks[index].comment}
+                                      onChange={(event) => {
+                                        let nChecked = data.checks
+                                        nChecked.checks[index].comment =
+                                          event.target.value
+
+                                        setData({ ...data, checks: nChecked })
+                                      }}
+                                    ></textarea>
+                                  ) : (
+                                    <div className="prose">
+                                      <p>
+                                        <strong>Comment:</strong>
+                                        <br />
+                                        {data.checks.checks[index].comment}
+                                      </p>
+                                    </div>
+                                  )}
+                                </ArrowContainer>
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  let nChecked = data.checks
+                                  nChecked.checks[index].hasComment =
+                                    !nChecked.checks[index].hasComment
+
+                                  setData({ ...data, checks: nChecked })
+                                }}
+                              >
+                                <AnnotationIcon className="icon" />
+                              </button>
+                            </Popover>
                           </div>
-                          <CheckBox
-                            name="check"
-                            className="mb-0"
-                            defaultChecked={data.checks.checks[index]}
-                            value={data.checks.checks[index] ? 1 : 0}
-                            disabled={_user.role == 'student'}
-                            onChange={(event) => {
-                              const { checked } = event.target
-                              let nChecked = data.checks
-                              nChecked.checks[index] = checked
-
-                              if (checked) {
-                                nChecked.score += parseInt(value.points as any)
-                              } else {
-                                nChecked.score -= parseInt(value.points as any)
-                              }
-
-                              setData({ checks: nChecked })
-                            }}
-                          />
-                        </div>
-                      </span>
-                    )}
+                        </span>
+                      )}
+                    </div>
                   </legend>
                   <div className="card-legend-body py-2">
                     {renderQuestionItem(index)}

@@ -27,6 +27,10 @@ return new class extends Migration
                 ->on('users')
                 ->onDelete('cascade');
         });
+
+        Schema::table('activities_checks', function ($table) {
+            $table->json('comments');
+        });
     }
 
     /**
