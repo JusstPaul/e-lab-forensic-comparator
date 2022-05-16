@@ -84,7 +84,7 @@ const ActivityAnswer: FC<Props> = ({
       }),
     }
 
-    if (cached_answer != null) {
+    if (cached_answer) {
       const nCachedAswer = cached_answer
       nCachedAswer.data = nCachedAswer.data!.map((value, index) => {
         switch (activity.questions[index].type) {
