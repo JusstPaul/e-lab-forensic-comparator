@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivitiesAnswer;
 use App\Models\ActivitiesChecks;
-use App\Models\ClassesActivities;
 use Cache;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
@@ -87,24 +86,15 @@ class ActivitiesAnswerController extends Controller
 
     public function show_answers($class_id, $activity_id, $student_id)
     {
+        $answer = fn() => ActivitiesAnswer::find(Hashids::decode($activity_id)[0]);
+
         return Inertia::render('Auth/InstructorAndStudent/ClassShowAnswers', [
             'id' => $class_id,
             'activity_id' => $activity_id,
             'student_id' => $student_id,
-            'questions' => function () use ($class_id, $activity_id) {
+            'questions' => function () use ($answer, $activity_id) {
 
-/*                 $questions = ClassesActivities::where('classes_id', Hashids::decode($class_id)[0])
-->get()
-->map(fn($val) => [
-'title' => $val->title,
-'type' => $val->type,
-'date_end' => $val->date_end,
-'time_end' => $val->time_end,
-'questions' => $val->questions,
-])
-->first();
- */
-                $questions = ClassesActivities::find(Hashids::decode($activity_id)[0]);
+                $questions = $answer()->classes;
 
                 $total_points = 0;
                 foreach ($questions['questions'] as $question) {
@@ -118,18 +108,16 @@ class ActivitiesAnswerController extends Controller
                     'total_points' => $total_points,
                 ];
             },
-            'answers' => function () use ($student_id, $activity_id) {
+            'answers' => function () use ($answer) {
 
-                $answer = ActivitiesAnswer::where('activity_id', Hashids::decode($activity_id)[0])
-                    ->where('student_id', Hashids::decode($student_id)[0])
-                    ->first();
+                $ans = $answer();
 
                 return [
                     'answers' => [
-                        'id' => $answer['answers']['id'],
-                        'data' => $answer['answers']['data'],
+                        'id' => $ans['answers']['id'],
+                        'data' => $ans['answers']['data'],
                     ],
-                    'checks' => ActivitiesChecks::where('answer_id', $answer['id'])->first(),
+                    'checks' => ActivitiesChecks::where('answer_id', $ans['id'])->first(),
                 ];
             },
         ]);
