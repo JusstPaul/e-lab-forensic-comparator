@@ -100,12 +100,12 @@ class ClassesController extends Controller
     public function remove_students(Request $request, $class_id)
     {
         $request->validate([
-            'students' => 'required|array',
+            'selected' => 'required|array',
         ]);
 
         $ids = array_map(function ($id) {
             return Hashids::decode($id)[0];
-        }, $request->students);
+        }, $request->selected);
 
         User::whereIn('id', $ids)->update([
             'joined_classes' => null,
@@ -114,6 +114,8 @@ class ClassesController extends Controller
         return redirect()->route('class.students.view', [
             'class_id' => $class_id,
         ]);
+
+        return redirect('/class/overview/' . $class_id . '?tab=1');
     }
 
     public function show_add_students($class_id)
@@ -137,7 +139,7 @@ class ClassesController extends Controller
         ]);
     }
 
-    public function index($class_id, $active = null, $student_id = null, $activity_id = null)
+    public function index($class_id)
     {
 
         $user = auth()->user();
@@ -194,9 +196,8 @@ class ClassesController extends Controller
                         ]);
                     } else {
                         array_push($cards, [
-                            'type' => 'activity',
+                            'type' => 'task',
                             'display' => $activity['title'],
-                            //'link' => '/class/' . $class_id . '/activity/view/' . Hashids::encode($activity['id']),
                             'link' => '/class' . '/' . $class_id . '/overview/progress',
                             'created_at' => $activity['created_at'],
                         ]);
@@ -212,108 +213,24 @@ class ClassesController extends Controller
 
                 return $cards;
             },
-            'initial_active' => $active,
-            'progress' => function () use ($class_id, $student_id, $activity_id) {
-                $user = auth()->user();
-                $profile = $user->profile;
-                $role = $user->roles->first()->name;
+            'students' => fn() => $classes->students()
+                ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                ->get()
+                ->map(function ($value) {
+                    $name = null;
+                    if ($value->middle_name == null || $value->middle_name == '') {
+                        $name = $value->last_name . ', ' . $value->first_name . ' ';
+                    } else {
+                        $name = $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.';
+                    }
 
-                return [
-                    'students' => function () use ($class_id, $user, $profile, $role) {
-                        if ($role == 'student') {
-                            return [[
-                                'id' => Hashids::encode($user->id),
-                                'username' => $user->username,
-                                'name' => $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '. ',
-                            ]];
-                        }
-
-                        return Classes::find(Hashids::decode($class_id)[0])
-                            ->students()
-                            ->join('profiles', 'profiles.user_id', '=', 'users.id')
-                            ->get()
-                            ->map(function ($student) {
-                                return [
-                                    'id' => Hashids::encode($student->user_id),
-                                    'username' => $student->username,
-                                    'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
-                                ];
-                            });
-                    },
-                    'current_student' => function () use ($student_id, $class_id, $role, $user, $activity_id) {
-                        if ($student_id == null && $role != 'student') {
-                            return;
-                        }
-
-                        if ($role == 'student' && Hashids::decode($student_id)[0] != $user->id) {
-                            return redirect()->route('class.overview.progress', [
-                                'activity_id' => $activity_id,
-                                'class_id' => $class_id,
-                                'student_id' => Hashids::encode($user->id),
-                            ]);
-                        }
-
-                        $activities = ClassesActivities::where('classes_id',
-                            Hashids::decode($class_id)[0])->get();
-                        $student = User::where('users.id', Hashids::decode($student_id)[0])
-                            ->join('profiles', 'profiles.user_id', 'users.id')
-                            ->first();
-
-                        $activities_status = [];
-                        foreach ($activities as $activity) {
-                            $answer = ActivitiesAnswer::where('student_id',
-                                Hashids::decode($student_id)[0])
-                                ->where('activity_id', $activity->id)
-                                ->first();
-                            $date = new DateTime($activity->date_end . ' ' . $activity->time_end);
-
-                            if ($answer == null) {
-                                array_push($activities_status, [
-                                    'id' => null,
-                                    'type' => $activity->type,
-                                    'title' => $activity->title,
-                                    'score' => 'None',
-                                    'is_late' => new DateTime('now') > $date,
-                                ]);
-                            } else {
-                                $total = 0;
-                                foreach ($answer->answers['data'] as $data) {
-                                    if ($data != null) {
-                                        $total += $data['points'];
-                                    }
-                                }
-
-                                $check = ActivitiesChecks::where('answer_id', $answer->id)->first();
-
-                                array_push($activities_status, [
-                                    'id' => Hashids::encode($answer->id),
-                                    'type' => $activity->type,
-                                    'title' => $activity->title,
-                                    'score' => $check != null ? $check->score . '/' . $total : 'Submitted',
-                                    'is_late' => new DateTime($answer->updated_at) > $date,
-                                ]);
-                            }
-                        }
-
-                        $exams = array_filter($activities_status, function ($activity) {
-                            return $activity['type'] == 'exam';
-                        });
-                        $assignments = array_filter($activities_status, function ($activity) {
-                            return $activity['type'] == 'assignment';
-                        });
-
-                        return [
-                            'student' => [
-                                'id' => $student_id,
-                                'username' => $student->username,
-                                'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
-                            ],
-                            'exams' => $exams,
-                            'assignments' => $assignments,
-                        ];
-                    },
-                ];
-            },
+                    return [
+                        'id' => Hashids::encode($value->user_id),
+                        'username' => $value->username,
+                        'name' => $name,
+                        'contact' => $value->contact,
+                    ];
+                }),
         ]);
     }
 
@@ -351,10 +268,17 @@ class ClassesController extends Controller
             'id' => $class_id,
             'students' => function () use ($class_id, $user, $profile, $role) {
                 if ($role == 'student') {
+                    $name = null;
+                    if ($profile->middle_name == null || $profile->middle_name == '') {
+                        $name = $profile->last_name . ', ' . $profile->first_name . ' ';
+                    } else {
+                        $name = $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.';
+                    }
+
                     return [[
                         'id' => Hashids::encode($user->id),
                         'username' => $user->username,
-                        'name' => $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '. ',
+                        'name' => $name,
                     ]];
                 }
 
@@ -363,10 +287,16 @@ class ClassesController extends Controller
                     ->join('profiles', 'profiles.user_id', '=', 'users.id')
                     ->get()
                     ->map(function ($student) {
+                        $name = null;
+                        if ($student->middle_name == null || $student->middle_name == '') {
+                            $name = $student->last_name . ', ' . $student->first_name . ' ';
+                        } else {
+                            $name = $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.';
+                        }
                         return [
                             'id' => Hashids::encode($student->user_id),
                             'username' => $student->username,
-                            'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
+                            'name' => $name,
                         ];
                     });
             },
@@ -395,7 +325,9 @@ class ClassesController extends Controller
                         Hashids::decode($student_id)[0])
                         ->where('activity_id', $activity->id)
                         ->first();
-                    $date = new DateTime($activity->date_end . ' ' . $activity->time_end);
+                    $date = new DateTime($activity->date_end);
+                    $time = new DateTime($activity->time_end);
+                    $date->setTime($time->format('H'), $time->format('i'));
 
                     if ($answer == null) {
                         array_push($activities_status, [

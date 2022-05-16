@@ -58,6 +58,7 @@ const EditUser: FC<Props> = ({ id, username, role }) => {
             <Selection
               selectProps={{
                 label: 'Role',
+                name: 'reser_password',
                 data: [
                   { value: 'admin', label: 'Admin' },
                   { value: 'instructor', label: 'Instructor' },
@@ -90,52 +91,6 @@ const EditUser: FC<Props> = ({ id, username, role }) => {
       </Container>
     </Auth>
   )
-
-  /*   return (
-    <Auth title="Admin Edit User">
-      <div className="container-lg py-4">
-        <div className="font-light text-lg w-fit mx-auto mb-4">Create User</div>
-        <form
-          className="card w-fit mx-auto"
-          onSubmit={(event) => {
-            event.preventDefault()
-            post(`/user/edit/${id}`)
-          }}
-        >
-          <TextInput
-            label="Username"
-            name="username"
-            isFocused={true}
-            value={data.username}
-            onChange={handleInputChange}
-            error={{ value: errors.username }}
-          />
-          <div className="label">User Type</div>
-          <RadioGroup
-            name="role"
-            values={['admin', 'instructor', 'student']}
-            className="w-fit mx-auto"
-            value={data.role}
-            onChange={handleInputChange}
-            error={{ value: errors.role }}
-          />
-          <div className="flex justify-end">
-            <CheckBox
-              name="reset_password"
-              label="Reset Password"
-              value={data.reset_password ? 1 : 1}
-              onChange={handleInputChange}
-            />
-          </div>
-          <div className="px-4 mt-4">
-            <button className="btn-primary w-full" disabled={processing}>
-              Change
-            </button>
-          </div>
-        </form>
-      </div>
-    </Auth>
-  ) */
 }
 
 export default EditUser

@@ -1,11 +1,11 @@
-import { FC, Fragment, useState } from 'react'
+import { FC, Fragment, Suspense, useState } from 'react'
 import { Link, usePage } from '@inertiajs/inertia-react'
-import Class from '@/Layouts/Class'
-import Table from '@/Components/Table'
-import Select from '@/Components/Select'
 import { User } from '@/Layouts/Auth'
+import { Container, Paper, Table, Tabs, Text } from '@mantine/core'
+import Auth from '@/Layouts/Auth'
+import useStyle from '@/Lib/styles'
 
-type Student = {
+export type Student = {
   id: string
   username: string
   name: string
@@ -39,14 +39,16 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
   const { user } = usePage().props
   const _user = user as User
 
+  const classes = useStyle()
+
   const renderScore = (score: string) => {
     if (score == 'Submitted') {
-      return <span className="text-green-500">{score}</span>
+      return <Text color="green">{score}</Text>
     } else if (score == 'None') {
-      return <span className="text-red-500">{score}</span>
+      return <Text color="red">{score}</Text>
     }
 
-    return <span>{score}</span>
+    return <Text>{score}</Text>
   }
 
   // FIX: Remove this
@@ -55,6 +57,101 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
   } */
 
   return (
+    <Auth class_id={id} students={students}>
+      <Suspense>
+        {current_student ? (
+          <Tabs grow position="center">
+            <Tabs.Tab label="Assignment">
+              <Container size="md">
+                <Paper shadow="xs" p="sm" withBorder>
+                  <Table striped>
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Score</th>
+                        <th>Is Late</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {current_student.assignments.map((value, index) => (
+                        <tr key={index}>
+                          <td>
+                            {value.id != undefined ? (
+                              <Link
+                                href={`/class/${id}/activity/${value.id}/show/${current_student.student.id}`}
+                                className={classes.classes.link}
+                              >
+                                {value.title}
+                              </Link>
+                            ) : (
+                              <Text>{value.title}</Text>
+                            )}
+                          </td>
+                          <td>{renderScore(value.score)}</td>
+                          <td>
+                            {value.is_late ? (
+                              <Text color="red">Yes</Text>
+                            ) : (
+                              <Text color="green">No</Text>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </Paper>
+              </Container>
+            </Tabs.Tab>
+            <Tabs.Tab label="Exams">
+              <Container size="md">
+                <Paper shadow="xs" p="sm" withBorder>
+                  <Table striped>
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Score</th>
+                        <th>Is Late</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {current_student.exams.map((value, index) => (
+                        <tr key={index}>
+                          <td>
+                            {value.id != undefined ? (
+                              <Link
+                                href={`/class/${id}/activity/${value.id}/show/${current_student.student.id}`}
+                                className={classes.classes.link}
+                              >
+                                {value.title}
+                              </Link>
+                            ) : (
+                              <Text>{value.title}</Text>
+                            )}
+                          </td>
+                          <td>{renderScore(value.score)}</td>
+                          <td>
+                            {value.is_late ? (
+                              <Text color="red">Yes</Text>
+                            ) : (
+                              <Text color="green">No</Text>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </Paper>
+              </Container>
+            </Tabs.Tab>
+          </Tabs>
+        ) : (
+          <></>
+        )}
+      </Suspense>
+    </Auth>
+  )
+
+  /* return (
     <Class id={id} mode={2}>
       <div className="h-full flex justify-end py-4">
         <div className="flex-grow overflow-y-auto md:grid grid-cols-5 w-fit">
@@ -183,7 +280,7 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
         )}
       </div>
     </Class>
-  )
+  ) */
 }
 
 export default ClassViewProgress

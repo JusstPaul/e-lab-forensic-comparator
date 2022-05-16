@@ -37,6 +37,7 @@ const Guest = ({ title, children }: Props) => {
                 alignItems: 'center',
                 textAlign: 'center',
                 height: '100%',
+                color: theme.colors.gray[0],
               })}
             >
               <Title order={1}>

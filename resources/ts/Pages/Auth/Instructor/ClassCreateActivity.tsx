@@ -1,4 +1,12 @@
-import { FC, ChangeEvent, useState, useCallback } from 'react'
+import {
+  FC,
+  ChangeEvent,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  Suspense,
+} from 'react'
 import { useForm, usePage, Link } from '@inertiajs/inertia-react'
 import {
   PlusCircleIcon,
@@ -6,17 +14,41 @@ import {
   PaperClipIcon,
   PencilAltIcon,
   InformationCircleIcon,
+  PencilIcon,
 } from '@heroicons/react/outline'
 import { XCircleIcon } from '@heroicons/react/solid'
 import ReactTooltip from 'react-tooltip'
 import ImageViewer from 'react-simple-image-viewer'
-import TextInput from '@/Components/TextInput'
 import FileInput from '@/Components/FileInput'
-import Class from '@/Layouts/Class'
-import RadioGroup from '@/Components/RadioGroup'
+import Auth from '@/Layouts/Auth'
 import Error from '@/Components/Error'
-import CheckBox from '@/Components/CheckBox'
 import Editor from '@/Components/Editor'
+import {
+  Container,
+  Card,
+  Text,
+  Box,
+  Group,
+  Button,
+  Affix,
+  Portal,
+  Popover,
+  Center,
+  Stack,
+  ActionIcon,
+  Tooltip,
+  Transition,
+  Checkbox,
+  Image,
+  Alert,
+} from '@mantine/core'
+import Input from '@/Components/Input'
+import Selection from '@/Components/Selection'
+import DateInput from '@/Components/DateInput'
+import Time from '@/Components/Time'
+import useStyles from '@/Lib/styles'
+import { useMediaQuery, useViewportSize, useWindowScroll } from '@mantine/hooks'
+import Upload from '@/Components/Upload'
 
 export type Activity = 'assignment' | 'exam'
 
@@ -26,7 +58,7 @@ type Choices = 'radio' | 'checkbox'
 export type Question = {
   type: QuestionType
   instruction: string
-  choices?: { type: Choices; active: 0 | 1; data: Array<string> }
+  choices?: { type: Choices; active: boolean; data: Array<string> }
   files: FileList | Array<string> | null
   points: number
 }
@@ -37,54 +69,370 @@ type Props = {
   id: string
 }
 
+type RenderItemsProps = {
+  value: Question
+  index: number
+  offset: number
+  setOffset: React.Dispatch<React.SetStateAction<number>>
+  data: {
+    title: string
+    type: Activity
+    date_end: Date
+    time_end: Date
+    questions: Questions
+  }
+  setData: Function
+}
+
+const RenderItems: FC<RenderItemsProps> = ({
+  value,
+  index,
+  offset,
+  setOffset,
+  data,
+  setData,
+}) => {
+  const classes = useStyles()
+
+  const [currentValue, setCurrentValue] = useState(value)
+  useEffect(() => {
+    let nQuestions = data.questions
+    nQuestions[index] = currentValue
+
+    setData({ ...data, questions: nQuestions })
+  }, [currentValue])
+
+  const handleInstructionChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { value: val } = event.target
+
+    setCurrentValue({
+      ...currentValue,
+      instruction: val,
+    })
+  }
+
+  const handlePointsChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { valueAsNumber } = event.target
+
+    setCurrentValue({
+      ...currentValue,
+      points: valueAsNumber,
+    })
+  }
+
+  switch (value.type) {
+    case 'directions':
+      return (
+        <Editor
+          name="directions"
+          setContents={currentValue.instruction}
+          onChange={(content) => {
+            let nValue = currentValue
+            nValue.instruction = content
+            setCurrentValue(nValue)
+          }}
+        />
+      )
+
+    case 'question':
+      return (
+        <Box>
+          <Input
+            textProps={{
+              label: 'Instruction',
+              name: 'instruction',
+              value: currentValue.instruction,
+              onChange: handleInstructionChange,
+            }}
+          />
+          <Group align="center">
+            <Input
+              textProps={{
+                label: 'Points',
+                name: 'points',
+                type: 'number',
+                value: currentValue.points,
+                onChange: handlePointsChange,
+              }}
+            />
+            <Checkbox
+              label="Has Choices"
+              name="has-choice"
+              onChange={(event) => {
+                if (currentValue.choices) {
+                  setCurrentValue({
+                    ...currentValue,
+                    choices: {
+                      ...currentValue.choices,
+                      active: event.currentTarget.checked,
+                    },
+                  })
+                } else {
+                  const nValue = value
+                  nValue.choices = {
+                    active: event.currentTarget.checked,
+                    data: [],
+                    type: 'checkbox',
+                  }
+                  setCurrentValue({ ...nValue })
+                }
+              }}
+            />
+          </Group>
+          {currentValue.choices && currentValue.choices.active == true ? (
+            <Box>
+              <Selection
+                selectProps={{
+                  label: 'Choice Type',
+                  placeholder: 'Select one',
+                  value: currentValue.choices.type,
+                  data: [
+                    { value: 'radio', label: 'Radio' },
+                    { value: 'checkbox', label: 'Checkbox' },
+                  ],
+                  searchable: true,
+                  nothingFound: 'Invalid choice type',
+                  onChange: (value) => {
+                    if (currentValue.choices) {
+                      setCurrentValue({
+                        ...currentValue,
+                        choices: {
+                          ...currentValue.choices,
+                          type: value as any,
+                        },
+                      })
+                    } else {
+                      console.error('Render error on question')
+                    }
+                  },
+                }}
+              />
+              <Group>
+                <Text
+                  size="sm"
+                  weight="500"
+                  sx={(theme) => ({
+                    color: theme.colors.gray[9],
+                  })}
+                >
+                  Choices
+                </Text>
+                <ActionIcon
+                  color="cyan"
+                  variant="outline"
+                  onClick={() => {
+                    if (currentValue.choices) {
+                      let nData = currentValue.choices.data
+                      nData.push('')
+                      setCurrentValue({
+                        ...currentValue,
+                        choices: {
+                          ...currentValue.choices,
+                          data: nData,
+                        },
+                      })
+                    } else {
+                      console.error('Render error on question')
+                    }
+                  }}
+                >
+                  <Tooltip label="Add Choice" withArrow>
+                    <PlusCircleIcon className={classes.classes.icon} />
+                  </Tooltip>
+                </ActionIcon>
+              </Group>
+              <Stack py="sm">
+                {currentValue.choices.data.map((val, idx) => (
+                  <Input
+                    key={idx}
+                    textProps={{
+                      name: 'choice-data',
+                      value: val,
+                      onChange: (event) => {
+                        if (currentValue.choices) {
+                          let nData = currentValue.choices.data
+                          nData[idx] = event.target.value
+
+                          setCurrentValue({
+                            ...currentValue,
+                            choices: {
+                              ...currentValue.choices,
+                              data: nData,
+                            },
+                          })
+                        } else {
+                          console.error('Render error on question data')
+                        }
+                      },
+                      rightSection: (
+                        <ActionIcon
+                          color="red"
+                          onClick={() => {
+                            if (currentValue.choices) {
+                              let nData = currentValue.choices.data
+                              nData.splice(idx, 1)
+
+                              setCurrentValue({
+                                ...currentValue,
+                                choices: {
+                                  ...currentValue.choices,
+                                  data: nData,
+                                },
+                              })
+                            } else {
+                              console.error('Render error on question data')
+                            }
+                          }}
+                        >
+                          <XCircleIcon className={classes.classes.icon} />
+                        </ActionIcon>
+                      ),
+                    }}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          ) : (
+            <></>
+          )}
+        </Box>
+      )
+
+    case 'essay':
+      return (
+        <Box>
+          <Input
+            textProps={{
+              label: 'Instruction',
+              name: 'instruction',
+              value: currentValue.instruction,
+              onChange: handleInstructionChange,
+            }}
+          />
+          <Group>
+            <Input
+              textProps={{
+                label: 'Points',
+                name: 'points',
+                type: 'number',
+                value: currentValue.points,
+                onChange: handlePointsChange,
+              }}
+            />
+          </Group>
+        </Box>
+      )
+
+    case 'comparator':
+      return (
+        <Box>
+          <Input
+            textProps={{
+              label: 'Instruction',
+              name: 'instruction',
+              value: currentValue.instruction,
+              onChange: handleInstructionChange,
+            }}
+          />
+          <Group>
+            <Input
+              textProps={{
+                label: 'Points',
+                name: 'points',
+                type: 'number',
+                value: currentValue.points,
+                onChange: handlePointsChange,
+              }}
+            />
+            <Upload
+              id="comparator"
+              label="Upload Image"
+              onChange={(event) => {
+                setCurrentValue({
+                  ...currentValue,
+                  files: event.target.files,
+                })
+              }}
+            />
+          </Group>
+
+          {currentValue.files ? (
+            <>
+              <Text
+                size="sm"
+                weight="500"
+                sx={(theme) => ({
+                  color: theme.colors.gray[9],
+                })}
+              >
+                Specimens
+              </Text>
+              <Group spacing="xs" position="center">
+                {Array.from(currentValue.files as FileList).map(
+                  (value, idx) => (
+                    <Image
+                      key={idx}
+                      radius="lg"
+                      src={URL.createObjectURL(value)}
+                      width={200}
+                      height={200}
+                      withPlaceholder
+                      fit="contain"
+                    />
+                  )
+                )}
+              </Group>
+            </>
+          ) : (
+            <></>
+          )}
+        </Box>
+      )
+
+    default:
+      return (
+        <Text size="sm" color="red">
+          Invalid Item!
+        </Text>
+      )
+  }
+}
+
 const ClassCreateActivity: FC<Props> = ({ id }) => {
-  const [images, setImages] = useState<Array<string>>([])
-  const [currentImage, setCurrentImage] = useState(0)
-  const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const classes = useStyles()
 
-  const openImageViewer = useCallback((index: number) => {
-    setCurrentImage(index)
-    setIsViewerOpen(true)
-  }, [])
+  const atLeastMd = useMediaQuery('(min-width: 992px)')
 
-  const closeImageViewer = useCallback(() => {
-    setCurrentImage(0)
-    setIsViewerOpen(false)
-  }, [])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { height, width } = useViewportSize()
+
+  const getRightMenuLocation = () => {
+    if (atLeastMd && containerRef.current) {
+      const halfWidth = width / 2
+      const continerWidth =
+        containerRef.current.getBoundingClientRect().width / 2
+      return width - (continerWidth + halfWidth + 200)
+    }
+    return 10
+  }
+
+  const [numberingOffset, setNumberingOffset] = useState(0)
 
   const { data, setData, post, processing, errors } = useForm<{
     title: string
     type: Activity
-    date_end: string
-    time_end: string
+    date_end: Date
+    time_end: Date
     questions: Questions
   }>('Class:' + id + '/CreateActivity', {
     title: '',
     type: 'assignment',
-    date_end: new Date().toISOString().split('T')[0],
-    time_end: '23:59',
+    date_end: new Date(),
+    time_end: new Date(),
     questions: [],
   })
 
   const { errors: error_bag } = usePage().props
-
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target
-
-    switch (name) {
-      case 'title':
-        setData({ ...data, title: value })
-        break
-      case 'type':
-        setData({ ...data, type: value as Activity })
-        break
-      case 'date_end':
-        setData({ ...data, date_end: value })
-        break
-      default:
-        console.error('Invalid input name!')
-    }
-  }
 
   const handleAddingQuestions = (type: QuestionType) => {
     const nQuestions = data.questions
@@ -96,8 +444,8 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
           instruction: '',
           points: 1,
           choices: {
-            type: 'radio',
-            active: 0,
+            type: 'checkbox',
+            active: false,
             data: [],
           },
           files: null,
@@ -132,418 +480,243 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
         console.error('Invalid question type!')
         return
     }
+
     setData({ ...data, questions: nQuestions })
   }
 
-  const handleQuestionChange = (
-    event: ChangeEvent<HTMLInputElement>,
-    index: number
-  ) => {
-    const { name, value, checked, valueAsNumber } = event.target
-    let nQuestions = data.questions
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target
 
     switch (name) {
-      case 'instruction':
-        nQuestions[index].instruction = value
+      case 'title':
+        setData({ ...data, title: value })
         break
-      case 'points':
-        nQuestions[index].points = valueAsNumber
-        break
-      case 'choice-active':
-        nQuestions[index].choices!.active = checked ? 1 : 0
+      case 'type':
+        setData({ ...data, type: value as Activity })
         break
       default:
-        console.error('Invalid question field!')
-        return
-    }
-
-    setData({ ...data, questions: nQuestions })
-  }
-
-  const renderQuestionBody = (index: number) => {
-    switch (data.questions[index].type) {
-      case 'directions':
-        return (
-          <div className="card-legend-body py-2">
-            <Editor
-              name="direction"
-              setContents={data.questions[index].instruction}
-              onChange={(content) => {
-                const nQuestions = data.questions
-                nQuestions[index].instruction = content
-                setData({ ...data, questions: nQuestions })
-              }}
-              placeholder="Enter directions..."
-            />
-          </div>
-        )
-      case 'question':
-        return (
-          <div className="card-legend-body py-2">
-            <TextInput
-              label="Instruction"
-              name="instruction"
-              value={data.questions[index].instruction}
-              onChange={(event) => handleQuestionChange(event, index)}
-            />
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <TextInput
-                label="Points"
-                name="points"
-                type="number"
-                value={data.questions[index].points}
-                className="w-fit flex-grow-0"
-                onChange={(event) => handleQuestionChange(event, index)}
-              />
-              <div className="flex-grow">
-                <CheckBox
-                  label="Has Choices"
-                  name="choice-active"
-                  value={data.questions[index].choices?.active}
-                  onChange={(event) => handleQuestionChange(event, index)}
-                />
-              </div>
-            </div>
-            {data.questions[index].choices?.active ? (
-              <div className="px-4 flex flex-col">
-                <span className="label">Choices</span>
-                <div>
-                  <RadioGroup
-                    name={'choices-' + index + '-type'}
-                    values={['radio', 'checkbox']}
-                    onChange={(event) => {
-                      const nQuestions = data.questions
-                      nQuestions[index].choices!.type = event.target
-                        .value as Choices
-
-                      setData({
-                        ...data,
-                        questions: nQuestions,
-                      })
-                    }}
-                  />
-
-                  <button
-                    type="button"
-                    className="btn-primary w-full"
-                    onClick={() => {
-                      const nQuestions = data.questions
-                      nQuestions[index].choices!.data.push('')
-                      setData({
-                        ...data,
-                        questions: nQuestions,
-                      })
-                    }}
-                  >
-                    Add Choice
-                  </button>
-                </div>
-                <div className="mt-4">
-                  {data.questions[index].choices!.data.map((_, idx) => (
-                    <div
-                      key={idx}
-                      className="flex gap-2 md:gap-4 items-stretch"
-                    >
-                      <button
-                        type="button"
-                        className="text-red-500 flex-grow-0 w-fit h-auto outline-none"
-                        tabIndex={-1}
-                        onClick={() => {
-                          const nQuestions = data.questions
-                          nQuestions[index].choices!.data.splice(idx, 1)
-
-                          setData({
-                            ...data,
-                            questions: nQuestions,
-                          })
-                        }}
-                      >
-                        <XCircleIcon className="icon" />
-                      </button>
-                      <TextInput
-                        name="choice-data"
-                        value={data.questions[index].choices!.data[idx]}
-                        onChange={(event) => {
-                          const nQuestions = data.questions
-                          nQuestions[index].choices!.data[idx] =
-                            event.target.value
-                          setData({
-                            ...data,
-                            questions: nQuestions,
-                          })
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <></>
-            )}
-          </div>
-        )
-
-      case 'essay':
-        return (
-          <div className="card-legend-body py-2">
-            <TextInput
-              label="Instruction"
-              name="instruction"
-              value={data.questions[index].instruction}
-              onChange={(event) => handleQuestionChange(event, index)}
-            />
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <TextInput
-                label="Points"
-                name="points"
-                type="number"
-                value={data.questions[index].points}
-                className="w-fit flex-grow-0"
-                onChange={(event) => handleQuestionChange(event, index)}
-              />
-            </div>
-          </div>
-        )
-
-      case 'comparator':
-        return (
-          <div className="card-legend-body py-2">
-            <TextInput
-              label="Instruction"
-              name="instruction"
-              value={data.questions[index].instruction}
-              onChange={(event) => handleQuestionChange(event, index)}
-            />
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <TextInput
-                label="Points"
-                name="points"
-                type="number"
-                value={data.questions[index].points}
-                className="w-fit flex-grow-0"
-                onChange={(event) => handleQuestionChange(event, index)}
-              />
-            </div>
-            <div>
-              <FileInput
-                label="Images"
-                name="files"
-                accepts="image"
-                onChange={(event) => {
-                  const nQuestions = data.questions
-                  nQuestions[index].files = event.target.files
-                  setData({ ...data, questions: nQuestions })
-                }}
-                multiple
-              />
-              <div className="flex gap-2 overflow-y-auto px-4 py-2">
-                {data.questions[index].files ? (
-                  Array.from(data.questions[index].files! as FileList).map(
-                    (value, idx) => (
-                      <button
-                        type="button"
-                        key={idx}
-                        onClick={() => {
-                          const nImages = Array.from(
-                            data.questions[index].files! as FileList
-                          ).map((value) => URL.createObjectURL(value))
-                          setImages(nImages)
-
-                          openImageViewer(idx)
-                        }}
-                      >
-                        <img
-                          src={URL.createObjectURL(value)}
-                          className="w-16 h-16 rounded-md"
-                        />
-                      </button>
-                    )
-                  )
-                ) : (
-                  <></>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      default:
-        console.error('Invalid question type!')
+        console.error('Invalid input name!')
     }
   }
 
   return (
-    <Class id={id} mode={3}>
-      <div className="container-lg p-4 md:p-8">
-        <p className="font-light text-lg w-fit mx-auto mb-4">Create Activity</p>
-        <div className="">
-          <form
-            className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
-            onSubmit={(event) => {
-              event.preventDefault()
-              post(`/class/${id}/activity/create`, {
-                _method: 'put',
-              } as any)
-            }}
-            encType="multipart/form-data"
-          >
-            <fieldset className="card mb-4">
-              <legend className="card-legend">General Settings</legend>
-              <div className="card-legend-body py-2">
-                <TextInput
-                  name="title"
-                  label="Activity Title"
-                  value={data.title}
-                  error={{ value: errors.title }}
-                  onChange={handleInputChange}
-                />
-                <div className="label">Activity Type</div>
-                <RadioGroup
-                  name="type"
-                  values={['assignment', 'exam']}
-                  error={{ value: errors.type }}
-                  onChange={handleInputChange}
-                  className="capitalize"
-                />
-                <div className="md:flex gap-4">
-                  {data.type == 'assignment' ? (
-                    <>
-                      <TextInput
-                        label="Date End"
-                        type="date"
-                        name="date_end"
-                        value={data.date_end}
-                        error={{
-                          value: errors.date_end,
-                        }}
-                        onChange={handleInputChange}
-                        className="mb-2 md:mb-4 flex-grow"
-                      />
-                    </>
-                  ) : (
-                    <></>
-                  )}
-                  <TextInput
-                    label="Time End"
-                    type="time"
-                    name="time_end"
-                    value={data.time_end}
-                    error={{ value: errors.date_end }}
-                    onChange={handleInputChange}
-                    className={data.type == 'assignment' ? 'flex-grow' : ''}
-                  />
-                </div>
-              </div>
-            </fieldset>
-            {Object.keys(error_bag as Object).length >= 1 && (
-              <div className="border border-red-500 rounded-md w-full flex justify-center mb-4 py-8">
-                <Error
-                  value={Object.keys(error_bag).at(0) ?? ''}
-                  message="Please check your questions"
-                />
-              </div>
-            )}
-            {data.questions.map((_, index) => (
-              <fieldset className="card mb-4" key={index}>
-                <legend className="card-legend capitalize flex justify-between">
-                  <span>
-                    {index + 1}. {data.questions[index].type}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nQuestions = data.questions
-                      nQuestions.splice(index, 1)
-                      setData({
-                        ...data,
-                        questions: nQuestions,
-                      })
-                    }}
-                  >
-                    <XCircleIcon className="icon" />
-                  </button>
-                </legend>
-                {renderQuestionBody(index)}
-              </fieldset>
-            ))}
-            <div className="flex justify-end">
-              <button
-                className="btn-primary w-full md:w-fit"
-                disabled={processing}
-              >
-                Submit
-              </button>
-            </div>
-          </form>
-          <div className="fixed z-10 inset-y-0 right-3.5 md:right-[20%] lg:right-[23%]">
-            <div className="h-full flex flex-col justify-end md:justify-center">
-              <div className="card-sm py-8 flex flex-col gap-4">
-                <button
-                  type="button"
-                  className="flex gap-2 items-center"
-                  data-tip="Add Directions"
-                  name="question"
-                  onClick={() => handleAddingQuestions('directions')}
-                >
-                  <InformationCircleIcon className="icon" />
-                </button>
-                <button
-                  type="button"
-                  className="flex gap-2 items-center"
-                  data-tip="Add Question"
-                  name="question"
-                  onClick={() => handleAddingQuestions('question')}
-                >
-                  <PlusCircleIcon className="icon" />
-                </button>
-                <button
-                  type="button"
-                  className="flex gap-2 items-center"
-                  data-tip="Add Essay"
-                  name="essay"
-                  onClick={() => handleAddingQuestions('essay')}
-                >
-                  <PaperClipIcon className="icon" />
-                </button>
-                <button
-                  type="button"
-                  className="flex gap-2 items-center"
-                  data-tip="Add Comparator"
-                  name="comparator"
-                  onClick={() => handleAddingQuestions('comparator')}
-                >
-                  <TemplateIcon className="icon" />
-                </button>
-                {/*
-                <Link
-                  href={`/class/${id}/activity/import`}
-                  className="flex gap-2 items-center"
-                  data-tip="Import Question"
-                >
-                  <PencilAltIcon className="icon" />
-                </Link>
-                */}
-                <ReactTooltip place="left" effect="float" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      {isViewerOpen ? (
-        <ImageViewer
-          src={images}
-          currentIndex={currentImage}
-          disableScroll={false}
-          closeOnClickOutside={true}
-          onClose={closeImageViewer}
-          backgroundStyle={{
-            background: 'rgba(0, 0, 0, 0.9)',
-            zIndex: 20,
+    <Auth class_id={id}>
+      <Container size="sm" ref={containerRef}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            post(`/class/${id}/activity/create`, {
+              _method: 'put',
+            } as any)
           }}
-        />
-      ) : (
-        <></>
-      )}
-    </Class>
+          encType="multipart/form-data"
+        >
+          <Card
+            p="sm"
+            withBorder
+            sx={() => ({
+              marginBottom: '1rem',
+            })}
+          >
+            <Card.Section
+              p="sm"
+              sx={(theme) => ({
+                backgroundColor: theme.colors.cyan[7],
+                color: theme.colors.gray[0],
+              })}
+            >
+              <Text>General Settings</Text>
+            </Card.Section>
+            <Box py="sm">
+              <Input
+                textProps={{
+                  name: 'title',
+                  label: 'Task Title',
+                  value: data.title,
+                  onChange: handleInputChange,
+                }}
+                error={{
+                  value: errors.title,
+                }}
+              />
+              <Selection
+                selectProps={{
+                  label: 'Task Type',
+                  placeholder: 'Select one',
+                  value: data.type,
+                  data: [
+                    { value: 'assignment', label: 'Assignment' },
+                    { value: 'exam', label: 'Exam' },
+                  ],
+                  searchable: true,
+                  nothingFound: 'Invalid task type',
+                  onChange: (value) => {
+                    setData({ ...data, type: value as any })
+                  },
+                }}
+                error={{
+                  value: errors.type,
+                }}
+              />
+              <Group grow>
+                {data.type == 'assignment' ? (
+                  <DateInput
+                    dateProps={{
+                      label: 'Date End',
+                      name: 'date_end',
+                      value: data.date_end,
+                      minDate: new Date(),
+                      onChange: (event) => {
+                        if (event) {
+                          setData({ ...data, date_end: event })
+                        }
+                      },
+                    }}
+                    error={{ value: errors.date_end }}
+                  />
+                ) : (
+                  <></>
+                )}
+                <Time
+                  timeProps={{
+                    label: 'Time End',
+                    name: 'time_end',
+                    value: data.time_end,
+                    onChange: (event) => {
+                      if (event) {
+                        setData({ ...data, time_end: event })
+                      }
+                    },
+                  }}
+                  error={{ value: errors.time_end }}
+                />
+              </Group>
+            </Box>
+          </Card>
+
+          {Object.keys(error_bag).length >= 1 && (
+            <Alert
+              icon={<InformationCircleIcon className={classes.classes.icon} />}
+              title="Create Task Error"
+              color="red"
+            >
+              Please check your questions
+            </Alert>
+          )}
+
+          {data.questions.map((value, index) => (
+            <Card
+              key={index}
+              p="sm"
+              withBorder
+              sx={() => ({
+                marginBottom: '1rem',
+              })}
+            >
+              <Card.Section
+                p="sm"
+                sx={(theme) => ({
+                  backgroundColor: theme.colors.cyan[7],
+                  color: theme.colors.gray[0],
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                })}
+              >
+                <Text transform="capitalize">
+                  {value.type != 'directions' ? (
+                    <>{index + 1 - numberingOffset}. </>
+                  ) : (
+                    ''
+                  )}
+                  {value.type}
+                </Text>
+                <ActionIcon
+                  sx={(theme) => ({
+                    color: theme.colors.gray[0],
+                    ':hover': {
+                      backgroundColor: theme.colors.cyan[7],
+                      color: theme.colors.gray[1],
+                    },
+                  })}
+                  onClick={() => {
+                    const nQuestions = data.questions
+                    nQuestions.splice(index, 1)
+                    setData({ ...data, questions: nQuestions })
+                  }}
+                >
+                  <XCircleIcon className={classes.classes.icon} />
+                </ActionIcon>
+              </Card.Section>
+              <Box py="sm">
+                <RenderItems
+                  value={value}
+                  index={index}
+                  offset={numberingOffset}
+                  setOffset={setNumberingOffset}
+                  data={data}
+                  setData={setData}
+                />
+              </Box>
+            </Card>
+          ))}
+
+          <Group position="right">
+            <Button
+              type="submit"
+              sx={(theme) => ({
+                marginTop: theme.spacing.md,
+              })}
+              loading={processing}
+            >
+              Submit
+            </Button>
+          </Group>
+        </form>
+      </Container>
+      <Affix
+        position={{
+          bottom: atLeastMd ? height / 2 - 60 : 10,
+          right: getRightMenuLocation(),
+        }}
+      >
+        <Card p="xs" withBorder>
+          <Stack>
+            <ActionIcon
+              variant="hover"
+              onClick={() => handleAddingQuestions('directions')}
+            >
+              <Tooltip withArrow label="Add Directions">
+                <InformationCircleIcon className={classes.classes.icon} />
+              </Tooltip>
+            </ActionIcon>
+            <ActionIcon
+              variant="hover"
+              onClick={() => handleAddingQuestions('question')}
+            >
+              <Tooltip withArrow label="Add Question">
+                <PlusCircleIcon className={classes.classes.icon} />
+              </Tooltip>
+            </ActionIcon>
+            <ActionIcon
+              variant="hover"
+              onClick={() => handleAddingQuestions('essay')}
+            >
+              <Tooltip withArrow label="Add Essay">
+                <PencilAltIcon className={classes.classes.icon} />
+              </Tooltip>
+            </ActionIcon>
+            <ActionIcon
+              variant="hover"
+              onClick={() => handleAddingQuestions('comparator')}
+            >
+              <Tooltip withArrow label="Add Comparator">
+                <TemplateIcon className={classes.classes.icon} />
+              </Tooltip>
+            </ActionIcon>
+          </Stack>
+        </Card>
+      </Affix>
+    </Auth>
   )
 }
 

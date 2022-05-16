@@ -1,7 +1,7 @@
 import { FC, useEffect, useState, ChangeEvent } from 'react'
 import { PropsWithChildren } from 'react'
 import { Head, Link, usePage, useForm } from '@inertiajs/inertia-react'
-import { DocumentAddIcon, UserAddIcon } from '@heroicons/react/solid'
+import { DocumentAddIcon, HomeIcon, UserAddIcon } from '@heroicons/react/solid'
 import {
   AppShell,
   Box,
@@ -17,13 +17,21 @@ import {
   Group,
   Stack,
   Center,
+  ThemeIcon,
+  Accordion,
 } from '@mantine/core'
 import { useDisclosure, useMediaQuery } from '@mantine/hooks'
-import { PlusIcon, MenuIcon, ChevronDownIcon } from '@heroicons/react/outline'
+import {
+  PlusIcon,
+  MenuIcon,
+  ChevronDownIcon,
+  BadgeCheckIcon,
+} from '@heroicons/react/outline'
 import Input from '@/Components/Input'
 import Selection from '@/Components/Selection'
 import Time from '@/Components/Time'
 import useStyle from '@/Lib/styles'
+import { Student } from '@/Pages/Auth/InstructorAndStudent/ClassViewProgress'
 
 type SideBarSectionElements = {
   display: string
@@ -45,6 +53,7 @@ export type User = {
 type Props = PropsWithChildren<{
   title?: string
   class_id?: string
+  students?: Array<Student>
   onModals?: Function
 }>
 
@@ -222,7 +231,7 @@ const CreateClassForm: FC<CreateClassFormProps> = ({ onCreateClass }) => {
   )
 }
 
-const Auth = ({ title, class_id, onModals, children }: Props) => {
+const Auth = ({ title, class_id, onModals, students, children }: Props) => {
   const [headTitle, setHeadTitle] = useState('e-Lab Forensic Comparator')
   useEffect(() => {
     if (title) {
@@ -278,43 +287,107 @@ const Auth = ({ title, class_id, onModals, children }: Props) => {
               {_user.role == 'instructor' ? (
                 <>
                   {class_id ? (
-                    <Navbar.Section>
-                      <Center>
-                        <Stack>
-                          <Link
+                    <>
+                      <Navbar.Section>
+                        <Stack spacing="xs">
+                          <UnstyledButton
+                            component={Link}
+                            href={`/class/overview/${class_id}`}
+                            className={classes.classes.navbarLink}
+                          >
+                            <ThemeIcon
+                              radius="md"
+                              size="lg"
+                              className={classes.classes.navbarIcon}
+                            >
+                              <HomeIcon className={classes.classes.icon} />
+                            </ThemeIcon>
+                            <Text>Class</Text>
+                          </UnstyledButton>
+
+                          <UnstyledButton
+                            component={Link}
+                            href={`/class/overview/${class_id}/progress`}
+                            className={classes.classes.navbarLink}
+                          >
+                            <ThemeIcon
+                              radius="md"
+                              size="lg"
+                              className={classes.classes.navbarIcon}
+                            >
+                              <BadgeCheckIcon
+                                className={classes.classes.icon}
+                              />
+                            </ThemeIcon>
+                            <Text>Progress</Text>
+                          </UnstyledButton>
+
+                          <UnstyledButton
+                            component={Link}
                             href={`/class/${class_id}/students/add`}
-                            className={classes.classes.link}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              columnGap: '1rem',
-                            }}
+                            className={classes.classes.navbarLink}
                           >
-                            <UserAddIcon className={classes.classes.icon} />
-                            <span>Add Students</span>
-                          </Link>
-                          <Link
+                            <ThemeIcon
+                              radius="md"
+                              size="lg"
+                              className={classes.classes.navbarIcon}
+                            >
+                              <UserAddIcon className={classes.classes.icon} />
+                            </ThemeIcon>
+                            <Text>Add Students</Text>
+                          </UnstyledButton>
+
+                          <UnstyledButton
+                            component={Link}
                             href={`/class/${class_id}/activity/create`}
-                            className={classes.classes.link}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              columnGap: '1rem',
-                            }}
+                            className={classes.classes.navbarLink}
                           >
-                            <PlusIcon className={classes.classes.icon} />
-                            <span>Add Task</span>
-                          </Link>
+                            <ThemeIcon
+                              radius="md"
+                              size="lg"
+                              className={classes.classes.navbarIcon}
+                            >
+                              <PlusIcon className={classes.classes.icon} />
+                            </ThemeIcon>
+                            <Text>Add Task</Text>
+                          </UnstyledButton>
                         </Stack>
-                      </Center>
-                    </Navbar.Section>
+                      </Navbar.Section>
+                      {students && (
+                        <Navbar.Section>
+                          <Accordion iconSize={14} offsetIcon={false}>
+                            <Accordion.Item label="Students">
+                              <Stack>
+                                {students.map((value, index) => (
+                                  <Link
+                                    href={`/class/overview/${class_id}/progress/${value.id}`}
+                                    className={classes.classes.link}
+                                    key={index}
+                                    replace
+                                  >
+                                    {value.name}
+                                  </Link>
+                                ))}
+                              </Stack>
+                            </Accordion.Item>
+                          </Accordion>
+                        </Navbar.Section>
+                      )}
+                    </>
                   ) : (
                     <Navbar.Section>
-                      <Stack>
+                      <Stack spacing="xs">
                         <UnstyledButton
                           onClick={() => setIsCreateClassOpen(true)}
+                          className={classes.classes.navbarLink}
                         >
-                          <PlusIcon className={classes.classes.icon} />
+                          <ThemeIcon
+                            radius="md"
+                            size="lg"
+                            className={classes.classes.navbarIcon}
+                          >
+                            <PlusIcon className={classes.classes.icon} />
+                          </ThemeIcon>
                           <Text>Create Class</Text>
                         </UnstyledButton>
                       </Stack>
@@ -322,7 +395,45 @@ const Auth = ({ title, class_id, onModals, children }: Props) => {
                   )}
                 </>
               ) : (
-                <></>
+                <>
+                  {class_id ? (
+                    <Navbar.Section>
+                      <Stack spacing="xs">
+                        <UnstyledButton
+                          component={Link}
+                          href={`/class/overview/${class_id}/progress`}
+                          className={classes.classes.navbarLink}
+                        >
+                          <ThemeIcon
+                            radius="md"
+                            size="lg"
+                            className={classes.classes.navbarIcon}
+                          >
+                            <HomeIcon className={classes.classes.icon} />
+                          </ThemeIcon>
+                          <Text>Class</Text>
+                        </UnstyledButton>
+
+                        <UnstyledButton
+                          component={Link}
+                          href={`/class/overview/${class_id}`}
+                          className={classes.classes.navbarLink}
+                        >
+                          <ThemeIcon
+                            radius="md"
+                            size="lg"
+                            className={classes.classes.navbarIcon}
+                          >
+                            <BadgeCheckIcon className={classes.classes.icon} />
+                          </ThemeIcon>
+                          <Text>Progress</Text>
+                        </UnstyledButton>
+                      </Stack>
+                    </Navbar.Section>
+                  ) : (
+                    <></>
+                  )}
+                </>
               )}
             </Navbar>
           ) : (
@@ -397,14 +508,22 @@ const Auth = ({ title, class_id, onModals, children }: Props) => {
                   </Link>
                 </Box>
               )}
-              <Text weight="bolder" align="center">
-                Data Center College of the Philippines of Laoag, Inc.
-              </Text>
+              <MediaQuery
+                query="(max-width: 992px)"
+                styles={{ display: 'none' }}
+              >
+                <Text weight="bolder" align="center">
+                  Data Center College of the Philippines of Laoag, Inc.
+                </Text>
+              </MediaQuery>
               <Box
                 style={{
                   display: 'flex',
                   justifyContent: 'flex-end',
                   columnGap: '0.5rem',
+                  gridColumn: `${
+                    atLeastMd ? 'span 1 / span 1' : 'span 2 / span 2'
+                  }`,
                 }}
               >
                 {_user.role === 'admin' ? (
@@ -446,9 +565,7 @@ const Auth = ({ title, class_id, onModals, children }: Props) => {
                         alignItems: 'center',
                       })}
                     >
-                      <ChevronDownIcon
-                        style={{ width: '1.5rem', height: '1.5rem' }}
-                      />
+                      <ChevronDownIcon className={classes.classes.icon} />
                     </UnstyledButton>
                   }
                 >

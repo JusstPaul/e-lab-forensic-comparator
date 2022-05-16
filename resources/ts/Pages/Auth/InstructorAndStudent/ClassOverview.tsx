@@ -1,4 +1,4 @@
-import { FC, useState, Fragment, useEffect } from 'react'
+import { FC, useState, Fragment, useEffect, Suspense } from 'react'
 import { usePage, useForm, Link } from '@inertiajs/inertia-react'
 import {
   Box,
@@ -11,8 +11,12 @@ import {
   Menu,
   Tabs,
   Table,
+  InputWrapper,
+  ThemeIcon,
+  Group,
+  Checkbox,
+  ScrollArea,
 } from '@mantine/core'
-import Upload from 'rc-upload'
 import { User } from '@/Layouts/Auth'
 import Auth from '@/Layouts/Auth'
 import Editor from '@/Components/Editor'
@@ -21,6 +25,9 @@ import Error from '@/Components/Error'
 import { Inertia } from '@inertiajs/inertia'
 import useStyle from '@/Lib/styles'
 import moment from 'moment'
+import { UploadIcon } from '@heroicons/react/outline'
+import Upload from '@/Components/Upload'
+import axios from 'axios'
 
 type Classes = {
   id: string
@@ -35,6 +42,7 @@ type Student = {
   id: string
   username: string
   name: string
+  contact?: string
 }
 
 type ActivityStatus = {
@@ -64,16 +72,10 @@ type Props = {
     link: string
     created_at: string
   }>
-  progress: ProgressProps
-  initial_active?: number
+  students: Array<Student>
 }
 
-const ClassOverview: FC<Props> = ({
-  classes,
-  cards,
-  progress,
-  initial_active,
-}) => {
+const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
   const { user } = usePage().props
   const _user = user as User
 
@@ -85,293 +87,281 @@ const ClassOverview: FC<Props> = ({
     files: null,
   })
 
-  const [progressViewMode, setProgressViewMode] = useState<
-    'Exams' | 'Assignment'
-  >('Exams')
+  const studentsForm = useForm<{ selected: Array<string> }>({
+    selected: [],
+  })
 
   const _classes = useStyle()
 
-  const renderScore = (score: string) => {
-    if (score == 'Submitted') {
-      return <span className="text-green-500">{score}</span>
-    } else if (score == 'None') {
-      return <span className="text-red-500">{score}</span>
+  const getInitialTab = () => {
+    const params = new URLSearchParams(window.location.search)
+    const value = params.get('tab')
+    if (value && Number(value) != NaN) {
+      const convert = parseInt(value)
+      if (!(convert < 0 && convert > 2)) {
+        return convert
+      }
     }
-
-    return <span>{score}</span>
+    return 0
   }
 
   return (
     <Auth class_id={classes.id}>
-      <Tabs grow position="center" initialTab={initial_active}>
-        <Tabs.Tab label="Overview">
-          <Stack
-            p="lg"
-            align="flex-start"
-            justify="flex-end"
-            sx={(theme) => ({
-              backgroundImage: 'url("/storage/assets/banner.jpg")',
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'center center',
-              backgroundSize: 'cover',
-              filter: 'contrast("110%")',
-              borderRadius: theme.radius.md,
-              height: 200,
-            })}
-          >
-            <div className="w-full banner px-2 py-2 md:px-4 md:py-8 rounded-md shadoe-sm">
-              <div className="bg-primary mr-auto w-fit px-2 py rounded-md shadow-sm">
-                <Text
-                  color="#ffffff"
-                  weight="bold"
-                  sx={(theme) => ({
-                    textShadow: theme.shadows.xs,
-                  })}
-                >
-                  {classes.code}
-                </Text>
-
-                <Text
-                  color="#ffffff"
-                  weight="bold"
-                  sx={(theme) => ({
-                    textShadow: theme.shadows.xs,
-                  })}
-                >
-                  {classes.day}{' '}
-                  {moment(new Date(classes.time_start)).format('h:mm a')}{' '}
-                  {moment(new Date(classes.time_end)).format('h:mm a')}
-                </Text>
-                <Text
-                  color="#ffffff"
-                  weight="bold"
-                  sx={(theme) => ({
-                    textShadow: theme.shadows.xs,
-                  })}
-                >
-                  {classes.instructor_name}
-                </Text>
-              </div>
-            </div>
-          </Stack>
-          <div>
-            {_user.role == 'instructor' ? (
-              <Container size="md" mt="lg">
-                <form
-                  className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    post(`/class/${classes.id}/announcement/create`, {
-                      _method: 'put',
-                      onSuccess: () => {
-                        Inertia.visit(`/class/overview/${classes.id}`, {
-                          only: ['cards'],
-                        })
-                      },
-                    } as any)
-                  }}
-                  encType="multipart/form-data"
-                >
-                  <Editor
-                    name="announcement"
-                    placeholder="Set announcements here..."
-                    setContents={data.text}
-                    onChange={(content) => {
-                      setData({ ...data, text: content })
-                    }}
-                  />
-                  <Box
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                    }}
+      <Suspense>
+        <Tabs
+          grow
+          position="center"
+          initialTab={getInitialTab()}
+          onTabChange={(index) => {
+            if (index == 0) {
+              Inertia.visit(`/class/overview/${classes.id}`, {
+                replace: true,
+              })
+            } else {
+              Inertia.visit(`/class/overview/${classes.id}?tab=${index}`, {
+                replace: true,
+              })
+            }
+          }}
+        >
+          <Tabs.Tab label="Overview">
+            <Stack
+              p="lg"
+              align="flex-start"
+              justify="flex-end"
+              sx={(theme) => ({
+                backgroundImage: 'url("/storage/assets/banner.jpg")',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center center',
+                backgroundSize: 'cover',
+                filter: 'contrast("110%")',
+                borderRadius: theme.radius.md,
+                height: 200,
+              })}
+            >
+              <div className="w-full banner px-2 py-2 md:px-4 md:py-8 rounded-md shadoe-sm">
+                <div className="bg-primary mr-auto w-fit px-2 py rounded-md shadow-sm">
+                  <Text
+                    color="#ffffff"
+                    weight="bold"
+                    sx={(theme) => ({
+                      textShadow: theme.shadows.xs,
+                    })}
                   >
-                    <Stack justify="center">
-                      <Error value={errors.files} />
-                      <Error value={errors.text} />
-                    </Stack>
-                    <Box
-                      mt="md"
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        columnGap: '1rem',
-                        alignItems: 'center',
+                    {classes.code}
+                  </Text>
+
+                  <Text
+                    color="#ffffff"
+                    weight="bold"
+                    sx={(theme) => ({
+                      textShadow: theme.shadows.xs,
+                    })}
+                  >
+                    {classes.day}{' '}
+                    {moment(new Date(classes.time_start)).format('h:mm a')}{' '}
+                    {moment(new Date(classes.time_end)).format('h:mm a')}
+                  </Text>
+                  <Text
+                    color="#ffffff"
+                    weight="bold"
+                    sx={(theme) => ({
+                      textShadow: theme.shadows.xs,
+                    })}
+                  >
+                    {classes.instructor_name}
+                  </Text>
+                </div>
+              </div>
+            </Stack>
+            <div>
+              {_user.role == 'instructor' ? (
+                <Container size="md" mt="lg">
+                  <form
+                    className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      post(`/class/${classes.id}/announcement/create`, {
+                        _method: 'put',
+                        onSuccess: () => {
+                          Inertia.visit(`/class/overview/${classes.id}`, {
+                            only: ['cards'],
+                          })
+                        },
+                      } as any)
+                    }}
+                    encType="multipart/form-data"
+                  >
+                    <Editor
+                      name="announcement"
+                      placeholder="Set announcements here..."
+                      setContents={data.text}
+                      onChange={(content) => {
+                        setData({ ...data, text: content })
                       }}
-                    >
-                      <input
-                        type="file"
-                        multiple
-                        onChange={(event) =>
-                          setData({ ...data, files: event.target.files })
-                        }
-                      />
-                      <Button type="submit" loading={processing}>
-                        Post
-                      </Button>
-                    </Box>
-                  </Box>
-                </form>
-              </Container>
-            ) : (
-              <></>
-            )}
-          </div>
-          <Container size="md">
-            <Divider my="md" label="Announcements" />
-            {cards ? (
-              <>
-                {cards.map((value, index) => (
-                  <Paper p="md" key={index}>
+                    />
                     <Box
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                       }}
                     >
-                      <Text size="md" transform="capitalize">
-                        {value.type}
-                      </Text>
-
-                      {_user.role == 'instructor' ? (
-                        <Menu>
-                          <Menu.Item>Edit</Menu.Item>
-                          <Menu.Item>Delete</Menu.Item>
-                        </Menu>
-                      ) : (
-                        <></>
-                      )}
+                      <Stack justify="center">
+                        <Error value={errors.files} />
+                        <Error value={errors.text} />
+                      </Stack>
+                      <Box
+                        mt="md"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          columnGap: '1rem',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Upload
+                          id="file-upload"
+                          label="Upload File"
+                          onChange={(event) => {
+                            setData({ ...data, files: event.target.files })
+                          }}
+                        />
+                        <Button
+                          type="submit"
+                          loading={processing}
+                          className="sr-only"
+                        >
+                          Post
+                        </Button>
+                      </Box>
                     </Box>
-                    <Link
-                      className={_classes.classes.link}
-                      dangerouslySetInnerHTML={{ __html: value.display }}
-                      href={value.link}
-                    ></Link>
-                  </Paper>
-                ))}
-              </>
-            ) : (
-              <></>
-            )}
-          </Container>
-        </Tabs.Tab>
-        <Tabs.Tab label="Students"></Tabs.Tab>
-        <Tabs.Tab label="Progress">
-          <Container style={{ display: 'flex' }}>
-            <Stack style={{ flexGrow: 0 }}>
-              <Text weight="bold">Students</Text>
-              {_user.role == 'instructor' ? (
+                  </form>
+                </Container>
+              ) : (
+                <></>
+              )}
+            </div>
+            <Container size="md">
+              <Divider my="md" label="Announcements" />
+              {cards ? (
                 <>
-                  {progress.students != undefined ? (
-                    <>
-                      {progress.students.map((value, index) => (
-                        <Fragment key={index}>
-                          <Link
-                            href={`/class/overview/${classes.id}/${2}/${
-                              value.id
-                            }`}
-                            className={_classes.classes.link}
-                          >
-                            <span className="w-max">{value.name}</span>
-                          </Link>
-                        </Fragment>
-                      ))}
-                    </>
-                  ) : (
-                    <></>
-                  )}
+                  {cards.map((value, index) => (
+                    <Paper p="md" my="sm" key={index} withBorder>
+                      <Box
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Group align="center">
+                          <Text size="md" transform="capitalize">
+                            {value.type}
+                          </Text>
+                          <Text size="xs" color="gray">
+                            {moment(value.created_at).fromNow()}
+                          </Text>
+                        </Group>
+
+                        {_user.role == 'instructor' ? (
+                          <Menu>
+                            <Menu.Item>Edit</Menu.Item>
+                            <Menu.Item>Delete</Menu.Item>
+                          </Menu>
+                        ) : (
+                          <></>
+                        )}
+                      </Box>
+                      <Link
+                        className={_classes.classes.link}
+                        dangerouslySetInnerHTML={{ __html: value.display }}
+                        href={value.link}
+                      ></Link>
+                    </Paper>
+                  ))}
                 </>
               ) : (
                 <></>
               )}
-            </Stack>
-            <Container size="md">
-              {progress.current_student != undefined ? (
-                <Paper shadow="xs" p="sm" withBorder>
-                  <Table>
-                    <thead>
-                      <tr>
-                        <th>Title</th>
-                        <th>Score</th>
-                        <th>Is On Time</th>
-                      </tr>
-                    </thead>
-                    {progressViewMode == 'Assignment' ? (
+            </Container>
+          </Tabs.Tab>
+          <Tabs.Tab label="Students">
+            <Suspense>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  studentsForm.post(`/class/${classes.id}/students/remove`)
+                }}
+              >
+                <Container size="md">
+                  <Group position="right" my="md">
+                    <Button
+                      type="submit"
+                      loading={studentsForm.processing}
+                      disabled={studentsForm.data.selected.length < 1}
+                    >
+                      Remove Selected
+                    </Button>
+                  </Group>
+                  <Paper shadow="xs" p="sm" withBorder>
+                    <Table striped>
+                      <thead>
+                        <tr>
+                          {_user.role == 'instructor' ? <th></th> : <></>}
+                          <th>Student Number</th>
+                          <th>Name</th>
+                          {_user.role == 'instructor' ? (
+                            <th>Contact</th>
+                          ) : (
+                            <></>
+                          )}
+                        </tr>
+                      </thead>
                       <tbody>
-                        {progress.current_student.assignments.map(
-                          (value, index) => (
-                            <tr key={index}>
-                              <td className="table-data">
-                                {value.id != undefined ? (
-                                  <Link
-                                    href={`/class/overview/${classes.id}/${2}/${
-                                      value.id
-                                    }/${progress.current_student!.student.id}`}
-                                    className={_classes.classes.link}
-                                    only={['current_student']}
-                                  >
-                                    {value.title}
-                                  </Link>
-                                ) : (
-                                  <span>{value.title}</span>
-                                )}
-                              </td>
-                              <td className="table-data">
-                                {renderScore(value.score)}
-                              </td>
-                              <td className="table-data">
-                                {value.is_late ? (
-                                  <span className="text-red-500">No</span>
-                                ) : (
-                                  <span className="text-green-500">Yes</span>
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        )}
-                      </tbody>
-                    ) : (
-                      <tbody>
-                        {progress.current_student.exams.map((value, index) => (
+                        {students.map((value, index) => (
                           <tr key={index}>
-                            <td className="table-data">
-                              {value.id != undefined ? (
-                                <Link
-                                  href={`/class/overview/${2}/${classes.id}/${
-                                    value.id
-                                  }/${progress.current_student!.student.id}`}
-                                  className={_classes.classes.link}
-                                  only={['current_student']}
-                                >
-                                  {value.title}
-                                </Link>
-                              ) : (
-                                <span>{value.title}</span>
-                              )}
-                            </td>
-                            <td className="table-data">
-                              {renderScore(value.score)}
-                            </td>
-                            <td className="table-data">
-                              {value.is_late ? (
-                                <span className="text-red-500">No</span>
-                              ) : (
-                                <span className="text-green-500">Yes</span>
-                              )}
-                            </td>
+                            {_user.role == 'instructor' ? (
+                              <td>
+                                <Checkbox
+                                  size="xs"
+                                  onChange={(event) => {
+                                    const { checked } = event.currentTarget
+                                    let nSelected = studentsForm.data.selected
+
+                                    if (checked) {
+                                      nSelected.push(value.id)
+                                    } else {
+                                      const idx = nSelected.indexOf(value.id)
+                                      nSelected.splice(idx, 1)
+                                    }
+
+                                    studentsForm.setData({
+                                      ...studentsForm.data,
+                                      selected: nSelected,
+                                    })
+                                  }}
+                                />
+                              </td>
+                            ) : (
+                              <></>
+                            )}
+                            <td>{value.username}</td>
+                            <td>{value.name}</td>
+                            {_user.role == 'instructor' ? (
+                              <td>{value.contact}</td>
+                            ) : (
+                              <></>
+                            )}
                           </tr>
                         ))}
                       </tbody>
-                    )}
-                  </Table>
-                </Paper>
-              ) : (
-                <></>
-              )}
-            </Container>
-          </Container>
-        </Tabs.Tab>
-      </Tabs>
+                    </Table>
+                  </Paper>
+                </Container>
+              </form>
+            </Suspense>
+          </Tabs.Tab>
+        </Tabs>
+      </Suspense>
     </Auth>
   )
 }

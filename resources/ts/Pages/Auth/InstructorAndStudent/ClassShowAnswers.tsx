@@ -7,16 +7,24 @@ import {
   Questions,
 } from '@/Pages/Auth/Instructor/ClassCreateActivity'
 import Class from '@/Layouts/Class'
-import { User } from '@/Layouts/Auth'
+import Auth, { User } from '@/Layouts/Auth'
 import moment from 'moment'
 import CheckBox from '@/Components/CheckBox'
 import { XCircleIcon } from '@heroicons/react/solid'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import { Annotation, AnnotationsState } from '../Student/Comparator'
+import { Container, Text, Box, Stack, Card } from '@mantine/core'
+
+type Check = {
+  isChecked: boolean
+  points: number
+  comment: string
+  hasComment: boolean
+}
 
 type CheckState = {
   score: number
-  checks: Array<boolean>
+  checks: Array<Check>
 }
 
 type Props = {
@@ -53,10 +61,96 @@ const ClassShowAnswers: FC<Props> = ({
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
 
-  const date = questions.questions.date_end + ' ' + questions.questions.time_end
-  const isLate = new Date(date).getTime() <= new Date().getTime()
+  const [dateStr, setDateStr] = useState('')
+  const [isLate, setIsLate] = useState(false)
+
+  useEffect(() => {
+    const date = moment(new Date())
+    const dateEndMoment = moment(questions.questions.date_end)
+    const timeEndMoment = moment(questions.questions.time_end)
+
+    dateEndMoment.set({
+      hour: timeEndMoment.get('hour'),
+      minute: timeEndMoment.get('minute'),
+    })
+
+    setDateStr(dateEndMoment.format('ddd DD MMMM, h:mm A'))
+    setIsLate(dateEndMoment.isSameOrAfter(date))
+  }, [])
 
   const initializeScores = (): CheckState => {
+    if (!answers.checks) {
+      return {
+        score: 0,
+        checks: questions.questions.questions.map(
+          (_) =>
+            ({
+              isChecked: false,
+              points: 0,
+              comment: '',
+              hasComment: false,
+            } as Check)
+        ),
+      } as CheckState
+    }
+
+    return answers.checks
+  }
+
+  const { data, setData, post, processing, errors } = useForm({
+    checks: initializeScores(),
+  })
+
+  return (
+    <Auth class_id={id}>
+      <Container size="sm">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+          }}
+        >
+          <Box py="lg">
+            <Text size="xl" align="center">
+              {questions.questions.title}
+            </Text>
+            <Text size="sm" align="center" color={isLate ? 'red' : 'gray'}>
+              Due: {dateStr}
+            </Text>
+          </Box>
+          <Stack>
+            {questions.questions.questions.map((value, index) => (
+              <Card
+                key={index}
+                p="sm"
+                withBorder
+                sx={() => ({
+                  marginBottom: '1rem',
+                })}
+              >
+                <Card.Section
+                  p="sm"
+                  sx={(theme) => ({
+                    backgroundColor: theme.colors.cyan[7],
+                    color: theme.colors.gray[0],
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'end',
+                  })}
+                >
+                  <Text transform="capitalize">
+                    {value.type != 'directions' ? <>{index + 1}. </> : ''}
+                    {value.type}
+                  </Text>
+                </Card.Section>
+              </Card>
+            ))}
+          </Stack>
+        </form>
+      </Container>
+    </Auth>
+  )
+
+  /*   const initializeScores = (): CheckState => {
     if (!answers.checks) {
       return {
         score: 0,
@@ -256,7 +350,7 @@ const ClassShowAnswers: FC<Props> = ({
         </div>
       </div>
     </Class>
-  )
+  ) */
 }
 
 export default ClassShowAnswers

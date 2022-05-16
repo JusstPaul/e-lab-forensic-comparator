@@ -30,7 +30,7 @@ createInertiaApp({
               },
             }),
             Button: (theme) => ({
-              root: {
+              filled: {
                 backgroundColor: theme.colors.cyan[7],
                 ':hover': {
                   backgroundColor: theme.colors.cyan[8],

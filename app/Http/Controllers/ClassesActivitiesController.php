@@ -19,7 +19,7 @@ class ClassesActivitiesController extends Controller
             'title' => 'required|max:255',
             'type' => 'required|in:assignment,exam',
             'date_end' => 'required_if:type,assignment|date|after:today',
-            'time_end' => 'required|date_format:H:i',
+            'time_end' => 'required',
             'questions' => 'required',
             'questions.*.type' => 'required|in:directions,question,comparator,essay',
             'questions.*.choices' => 'nullable',

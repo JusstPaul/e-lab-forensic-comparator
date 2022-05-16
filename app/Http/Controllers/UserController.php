@@ -162,7 +162,7 @@ class UserController extends Controller
         $user->username = $request->username;
         $user->syncRoles([$request->role]);
 
-        if ($user->reset_password) {
+        if ($request->reset_password) {
             $user->password = Hash::make($user->username);
         }
         $user->save();
