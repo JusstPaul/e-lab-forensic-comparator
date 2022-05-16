@@ -84,8 +84,9 @@ const ActivityAnswer: FC<Props> = ({
       }),
     }
 
-    if (cached_answer) {
-      const nCachedAswer = cached_answer
+    if (cached_answer && cached_answer.data) {
+      let nCachedAswer = cached_answer
+
       nCachedAswer.data = nCachedAswer.data!.map((value, index) => {
         switch (activity.questions[index].type) {
           case 'directions':
