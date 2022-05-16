@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivitiesAnswer;
 use App\Models\ActivitiesChecks;
 use App\Models\Classes;
 use App\Models\ClassesActivities;
@@ -289,9 +288,12 @@ class ClassesController extends Controller
 
                 $activities_status = [];
                 foreach ($activities as $activity) {
-                    $answer = ActivitiesAnswer::where('student_id',
-                        Hashids::decode($student_id)[0])
-                        ->where('activity_id', $activity->id)
+/*                     $answer = ActivitiesAnswer::where('student_id',
+Hashids::decode($student_id)[0])
+->where('activity_id', $activity->id)
+->first(); */
+                    $answer = $activity->activities()
+                        ->where('student_id', Hashids::decode($student_id)[0])
                         ->first();
                     $date = new DateTime($activity->date_end . ' ' . $activity->time_end);
 
