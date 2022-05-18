@@ -1,19 +1,41 @@
-import { CSSProperties, FC, useEffect, useRef, useState } from 'react'
+import {
+  ChangeEvent,
+  CSSProperties,
+  FC,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { usePage, useForm } from '@inertiajs/inertia-react'
 import * as markerjs2 from 'markerjs2'
 import { AnswerState } from '@/Pages/Auth/Student/ActivityAnswer'
 import {
   Activity,
   Questions,
+  Question,
 } from '@/Pages/Auth/Instructor/ClassCreateActivity'
 import Class from '@/Layouts/Class'
 import Auth, { User } from '@/Layouts/Auth'
 import moment from 'moment'
 import CheckBox from '@/Components/CheckBox'
-import { XCircleIcon } from '@heroicons/react/solid'
+import { XCircleIcon, AnnotationIcon } from '@heroicons/react/solid'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import { Annotation, AnnotationsState } from '../Student/Comparator'
-import { Container, Text, Box, Stack, Card } from '@mantine/core'
+import {
+  Container,
+  Text,
+  Box,
+  Stack,
+  Card,
+  Group,
+  ActionIcon,
+  Popover,
+  Textarea,
+  Tooltip,
+  Input,
+  Button,
+} from '@mantine/core'
+import useStyles from '@/Lib/styles'
 
 type Check = {
   isChecked: boolean
@@ -64,6 +86,8 @@ const ClassShowAnswers: FC<Props> = ({
   const [dateStr, setDateStr] = useState('')
   const [isLate, setIsLate] = useState(false)
 
+  const { classes } = useStyles()
+
   useEffect(() => {
     const date = moment(new Date())
     const dateEndMoment = moment(questions.questions.date_end)
@@ -75,7 +99,7 @@ const ClassShowAnswers: FC<Props> = ({
     })
 
     setDateStr(dateEndMoment.format('ddd DD MMMM, h:mm A'))
-    setIsLate(dateEndMoment.isSameOrAfter(date))
+    setIsLate(dateEndMoment.isSameOrBefore(date))
   }, [])
 
   const initializeScores = (): CheckState => {
@@ -117,240 +141,209 @@ const ClassShowAnswers: FC<Props> = ({
               Due: {dateStr}
             </Text>
           </Box>
+          <Group position="right">
+            <Text>
+              Total score: {data.checks.score}/{questions.total_points}
+            </Text>
+          </Group>
           <Stack>
             {questions.questions.questions.map((value, index) => (
-              <Card
-                key={index}
-                p="sm"
-                withBorder
-                sx={() => ({
-                  marginBottom: '1rem',
-                })}
+              <Popover
+                opened={data.checks.checks[index].hasComment}
+                withArrow
+                closeOnClickOutside={false}
+                gutter={5}
+                target={
+                  <Card
+                    key={index}
+                    p="sm"
+                    withBorder
+                    sx={() => ({
+                      marginBottom: '1rem',
+                    })}
+                  >
+                    <Card.Section
+                      p="sm"
+                      sx={(theme) => ({
+                        backgroundColor: theme.colors.cyan[7],
+                        color: theme.colors.gray[0],
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'end',
+                      })}
+                    >
+                      <Text transform="capitalize">
+                        {value.type != 'directions' ? <>{index + 1}. </> : ''}
+                        {value.type}
+                      </Text>
+                      <Group spacing="xs">
+                        <Tooltip label="Add Comment" withArrow>
+                          <ActionIcon
+                            sx={(theme) => ({
+                              color: theme.colors.gray[0],
+                              ':hover': {
+                                backgroundColor: theme.colors.cyan[7],
+                              },
+                            })}
+                            onClick={() => {
+                              let nChecks = data.checks.checks
+                              nChecks[index].hasComment =
+                                !nChecks[index].hasComment
+                              setData({
+                                ...data,
+                                checks: {
+                                  ...data.checks,
+                                  checks: nChecks,
+                                },
+                              })
+                            }}
+                          >
+                            <AnnotationIcon className={classes.icon} />
+                          </ActionIcon>
+                        </Tooltip>
+                        {value.points > 0 ? (
+                          <>
+                            {value.points > 1 ? (
+                              <>
+                                <Input
+                                  placeholder={`/${value.points}`}
+                                  sx={() => ({
+                                    width: '4.5rem',
+                                  })}
+                                  onChange={(
+                                    event: ChangeEvent<HTMLInputElement>
+                                  ) => {
+                                    const val = event.target.value
+                                    const nPoint = parseInt(
+                                      val == '' ? '0' : val
+                                    )
+                                    if (
+                                      nPoint <= parseInt(value.points as any) &&
+                                      nPoint >= 0
+                                    ) {
+                                      let nChecked = data.checks
+                                      nChecked.score -=
+                                        nChecked.checks[index].points
+                                      nChecked.checks[index].isChecked = true
+                                      nChecked.checks[index].points = nPoint
+                                      nChecked.score += nPoint
+
+                                      setData({ ...data, checks: nChecked })
+                                    }
+                                  }}
+                                />
+                              </>
+                            ) : (
+                              <></>
+                            )}
+                          </>
+                        ) : (
+                          <></>
+                        )}
+                      </Group>
+                    </Card.Section>
+                    <Box py="sm">
+                      <RenderAnswer
+                        question={value}
+                        index={index}
+                        answer={answers.answers.data[index].answer}
+                      />
+                    </Box>
+                  </Card>
+                }
               >
-                <Card.Section
-                  p="sm"
-                  sx={(theme) => ({
-                    backgroundColor: theme.colors.cyan[7],
-                    color: theme.colors.gray[0],
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'end',
-                  })}
-                >
-                  <Text transform="capitalize">
-                    {value.type != 'directions' ? <>{index + 1}. </> : ''}
-                    {value.type}
-                  </Text>
-                </Card.Section>
-              </Card>
+                <Textarea
+                  autosize
+                  placeholder="Add Comment"
+                  label="Comment"
+                  value={data.checks.checks[index].comment}
+                  onChange={(event) => {
+                    let nCheck = data.checks.checks
+                    nCheck[index].comment = event.target.value
+
+                    setData({
+                      ...data,
+                      checks: {
+                        ...data.checks,
+                        checks: nCheck,
+                      },
+                    })
+                  }}
+                />
+              </Popover>
             ))}
           </Stack>
+          <Group position="right">
+            <Button
+              type="submit"
+              sx={(theme) => ({
+                marginTop: theme.spacing.md,
+              })}
+              loading={processing}
+            >
+              Submit
+            </Button>
+          </Group>
         </form>
       </Container>
     </Auth>
   )
+}
 
-  /*   const initializeScores = (): CheckState => {
-    if (!answers.checks) {
-      return {
-        score: 0,
-        checks: questions.questions.questions.map((_) => {
-          return false
-        }),
-      } as CheckState
-    }
+type RenderAnswerProps = {
+  question: Question
+  index: number
+  answer: string | Array<string> | AnnotationsState
+}
 
-    return answers.checks
+const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
+  const { classes } = useStyles()
+
+  switch (question.type) {
+    case 'directions':
+      return (
+        <Text>
+          <div dangerouslySetInnerHTML={{ __html: question.instruction }}></div>
+        </Text>
+      )
+
+    case 'question':
+      return (
+        <Box>
+          <Text>{question.instruction}</Text>
+          <Box className={classes.answer}>{answer as string}</Box>
+        </Box>
+      )
+
+    case 'essay':
+      return (
+        <Box>
+          <Text>{question.instruction}</Text>
+          <Box className={classes.answer}>
+            {question.choices && question.choices.type == 'checkbox' ? (
+              <Stack>
+                {(answer as Array<string>).map((value, index) => (
+                  <Text key={index}>{value}</Text>
+                ))}
+              </Stack>
+            ) : (
+              <div dangerouslySetInnerHTML={{ __html: answer as string }}></div>
+            )}
+          </Box>
+        </Box>
+      )
+
+    case 'comparator':
+      alert('Comparator!')
+      return <></>
+
+    default:
+      return (
+        <Text size="sm" color="red">
+          Invalid Item!
+        </Text>
+      )
   }
-
-  const { data, setData, post, processing, errors } = useForm({
-    checks: initializeScores(),
-  })
-
-  const renderQuestionItem = (index: number) => {
-    const { type, instruction } = questions.questions.questions[index]
-
-    switch (type) {
-      case 'directions':
-        return (
-          <div className="prose">
-            <div dangerouslySetInnerHTML={{ __html: instruction }}></div>
-          </div>
-        )
-      case 'essay':
-        return (
-          <div>
-            <div className="prose">{instruction}</div>
-            <div className="prose">
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: answers.answers.data![index].answer as string,
-                }}
-              ></div>
-            </div>
-          </div>
-        )
-      case 'question':
-        return (
-          <div>
-            <div className="prose">{instruction}</div>
-            <div className="prose">
-              {answers.answers.data![index].answer as string}
-            </div>
-          </div>
-        )
-      case 'comparator':
-        const getStyle = (
-          filter: 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
-        ): CSSProperties => {
-          switch (filter) {
-            case 'none':
-              return {}
-            case 'hue':
-              return { filter: 'hue-rotate(180deg)' }
-            case 'sepia':
-              return { filter: 'sepia(100%)' }
-            case 'saturate':
-              return { filter: 'saturate(4)' }
-            case 'grayscale':
-              return { filter: 'grayscale(100%)' }
-          }
-        }
-        const Marker = ({ value }: { value: Annotation }) => {
-          const ref = useRef<HTMLImageElement>(null)
-          const url = getFileURL(client, _aws.bucket, value.image as string)
-          const state = useRef<markerjs2.MarkerAreaState>(
-            value.state ? value.state : null
-          )
-
-          return (
-            <div className="prose">
-              <img
-                ref={ref}
-                src={url}
-                className="mb-2"
-                style={getStyle(value.filter)}
-                onClick={() => {
-                  if (ref.current) {
-                    const markerArea = new markerjs2.MarkerArea(ref.current)
-                    markerArea.settings.displayMode = 'popup'
-                    markerArea.addEventListener('render', (event) => {
-                      if (ref.current) {
-                        ref.current.src = event.dataUrl
-                      }
-                    })
-                    markerArea.show()
-                    if (state.current) {
-                      markerArea.restoreState(state.current)
-                    }
-                  }
-                }}
-                crossOrigin="anonymous"
-              />
-              <div dangerouslySetInnerHTML={{ __html: value.essay }}></div>
-            </div>
-          )
-        }
-        return (
-          <div>
-            <div className="prose">{instruction}</div>
-            <div className="mt-2">
-              {(answers.answers.data![index].answer as AnnotationsState).map(
-                (value, index) => (
-                  <Marker key={index} value={value} />
-                )
-              )}
-            </div>
-          </div>
-        )
-      default:
-        return <div className="text-sm text-red-500">Invalid item!</div>
-    }
-  }
-
-  return (
-    <Class mode={3} id={id}>
-      <div className="container-lg p-4 md:p-8">
-        <p className="font-light text-lg w-fit mx-auto mb-4">
-          {_user.role == 'instructor' ? 'Check' : 'View'} Activity
-        </p>
-        <div className="">
-          <form
-            className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
-            onSubmit={(event) => {
-              event.preventDefault()
-              post(`/class/${id}/activity/${activity_id}/show/${student_id}`)
-            }}
-          >
-            <div className="text-center my-4">
-              <div className="text-xl">{questions.questions.title}</div>
-              <div className={'text-sm ' + (isLate && 'text-red-500')}>
-                Due {moment(date).format('ddd DD MMMM, h:mm A')}
-              </div>
-            </div>
-            <div className="text-right mb-2">
-              Total score: {data.checks.score}/{questions.total_points}
-            </div>
-            <div>
-              {questions.questions.questions.map((value, index) => (
-                <fieldset key={index} className="card mb-4">
-                  <legend className="card-legend capitalize flex justify-between items-end">
-                    <span>
-                      {index + 1}. {value.type}
-                    </span>
-                    {value.points > 0 && (
-                      <span className="h-full">
-                        <div className="flex gap-4">
-                          <div>
-                            <span className="text-sm">
-                              {value.points}{' '}
-                              {value.points > 1 ? <>Points</> : <>Point</>}
-                            </span>
-                          </div>
-                          <CheckBox
-                            name="check"
-                            className="mb-0"
-                            defaultChecked={data.checks.checks[index]}
-                            value={data.checks.checks[index] ? 1 : 0}
-                            disabled={_user.role == 'student'}
-                            onChange={(event) => {
-                              const { checked } = event.target
-                              let nChecked = data.checks
-                              nChecked.checks[index] = checked
-
-                              if (checked) {
-                                nChecked.score += parseInt(value.points as any)
-                              } else {
-                                nChecked.score -= parseInt(value.points as any)
-                              }
-
-                              setData({ checks: nChecked })
-                            }}
-                          />
-                        </div>
-                      </span>
-                    )}
-                  </legend>
-                  <div className="card-legend-body py-2">
-                    {renderQuestionItem(index)}
-                  </div>
-                </fieldset>
-              ))}
-              {_user.role == 'instructor' ? (
-                <div className="flex justify-end">
-                  <button className="btn-primary" disabled={processing}>
-                    Submit
-                  </button>
-                </div>
-              ) : (
-                <></>
-              )}
-            </div>
-          </form>
-        </div>
-      </div>
-    </Class>
-  ) */
 }
 
 export default ClassShowAnswers

@@ -20,6 +20,7 @@ createInertiaApp({
             fontFamily: 'Poppins, sans-serif',
             dateFormat: 'MM/DD/YYYY',
             datesLocale: 'en',
+            primaryColor: 'cyan',
           }}
           withGlobalStyles
           withNormalizeCSS

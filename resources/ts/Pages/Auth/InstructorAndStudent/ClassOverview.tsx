@@ -293,15 +293,17 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
                 }}
               >
                 <Container size="md">
-                  <Group position="right" my="md">
-                    <Button
-                      type="submit"
-                      loading={studentsForm.processing}
-                      disabled={studentsForm.data.selected.length < 1}
-                    >
-                      Remove Selected
-                    </Button>
-                  </Group>
+                  {_user.role == 'instructor' && (
+                    <Group position="right" my="md">
+                      <Button
+                        type="submit"
+                        loading={studentsForm.processing}
+                        disabled={studentsForm.data.selected.length < 1}
+                      >
+                        Remove Selected
+                      </Button>
+                    </Group>
+                  )}
                   <Paper shadow="xs" p="sm" withBorder>
                     <Table striped>
                       <thead>

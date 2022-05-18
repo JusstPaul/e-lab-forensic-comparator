@@ -46,4 +46,10 @@ export default createStyles((theme, _params, getRef) => ({
     whiteSpace: 'nowrap',
     borderWidth: 0,
   },
+  answer: {
+    backgroundColor: theme.colors.gray[1],
+    marginTop: '0.5rem',
+    padding: '0.5rem',
+    borderRadius: theme.radius.sm,
+  },
 }))

@@ -237,7 +237,7 @@ const ActivityAnswer: FC<Props> = ({
     })
 
     setDateStr(dateEndMoment.format('ddd DD MMMM, h:mm A'))
-    setIsLate(dateEndMoment.isSameOrAfter(date))
+    setIsLate(dateEndMoment.isSameOrBefore(date))
   }, [])
 
   const initializeAnswers = () => {

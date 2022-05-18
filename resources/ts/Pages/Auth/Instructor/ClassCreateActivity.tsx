@@ -1,27 +1,13 @@
-import {
-  FC,
-  ChangeEvent,
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-  Suspense,
-} from 'react'
-import { useForm, usePage, Link } from '@inertiajs/inertia-react'
+import { FC, ChangeEvent, useState, useRef, useEffect } from 'react'
+import { useForm, usePage } from '@inertiajs/inertia-react'
 import {
   PlusCircleIcon,
   TemplateIcon,
-  PaperClipIcon,
   PencilAltIcon,
   InformationCircleIcon,
-  PencilIcon,
 } from '@heroicons/react/outline'
 import { XCircleIcon } from '@heroicons/react/solid'
-import ReactTooltip from 'react-tooltip'
-import ImageViewer from 'react-simple-image-viewer'
-import FileInput from '@/Components/FileInput'
 import Auth from '@/Layouts/Auth'
-import Error from '@/Components/Error'
 import Editor from '@/Components/Editor'
 import {
   Container,
@@ -31,13 +17,9 @@ import {
   Group,
   Button,
   Affix,
-  Portal,
-  Popover,
-  Center,
   Stack,
   ActionIcon,
   Tooltip,
-  Transition,
   Checkbox,
   Image,
   Alert,
@@ -47,8 +29,9 @@ import Selection from '@/Components/Selection'
 import DateInput from '@/Components/DateInput'
 import Time from '@/Components/Time'
 import useStyles from '@/Lib/styles'
-import { useMediaQuery, useViewportSize, useWindowScroll } from '@mantine/hooks'
+import { useMediaQuery, useViewportSize } from '@mantine/hooks'
 import Upload from '@/Components/Upload'
+import dayjs from 'dayjs'
 
 export type Activity = 'assignment' | 'exam'
 
@@ -427,7 +410,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
   }>('Class:' + id + '/CreateActivity', {
     title: '',
     type: 'assignment',
-    date_end: new Date(),
+    date_end: dayjs(new Date()).add(1, 'day').toDate(),
     time_end: new Date(),
     questions: [],
   })
@@ -565,7 +548,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                       label: 'Date End',
                       name: 'date_end',
                       value: data.date_end,
-                      minDate: new Date(),
+                      minDate: dayjs(new Date()).add(1, 'day').toDate(),
                       onChange: (event) => {
                         if (event) {
                           setData({ ...data, date_end: event })
