@@ -13,8 +13,13 @@ class ActivitiesChecksController extends Controller
         $request->validate([
             'checks.score' => 'required|numeric',
             'checks.checks' => 'required|array',
-            'checks.checks.*' => 'boolean',
+            'checks.checks.*' => 'array',
+            'checks.checks.*.isChecked' => 'boolean',
+            'checks.checks.*.points' => 'required|numeric',
+            'checks.checks.*.hasComment' => 'boolean',
+            'checks.checks.*.comment' => 'required_if:checks.checks.*.hasComment,==,true',
         ]);
+
         $answer = ActivitiesAnswer::where('id', Hashids::decode($activity_id)[0])
             ->where('student_id', Hashids::decode($student_id)[0])
             ->first();

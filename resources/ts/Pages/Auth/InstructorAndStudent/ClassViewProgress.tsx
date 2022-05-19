@@ -43,12 +43,20 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
 
   const renderScore = (score: string) => {
     if (score == 'Submitted') {
-      return <Text color="green">{score}</Text>
+      return (
+        <Text size="sm" color="green">
+          {score}
+        </Text>
+      )
     } else if (score == 'None') {
-      return <Text color="red">{score}</Text>
+      return (
+        <Text size="sm" color="red">
+          {score}
+        </Text>
+      )
     }
 
-    return <Text>{score}</Text>
+    return <>{score}</>
   }
 
   // FIX: Remove this
@@ -84,15 +92,19 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
                                 {value.title}
                               </Link>
                             ) : (
-                              <Text>{value.title}</Text>
+                              <>{value.title}</>
                             )}
                           </td>
                           <td>{renderScore(value.score)}</td>
                           <td>
                             {value.is_late ? (
-                              <Text color="red">Yes</Text>
+                              <Text size="sm" color="red">
+                                Yes
+                              </Text>
                             ) : (
-                              <Text color="green">No</Text>
+                              <Text size="sm" color="green">
+                                No
+                              </Text>
                             )}
                           </td>
                         </tr>
@@ -125,15 +137,19 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
                                 {value.title}
                               </Link>
                             ) : (
-                              <Text>{value.title}</Text>
+                              <>{value.title}</>
                             )}
                           </td>
                           <td>{renderScore(value.score)}</td>
                           <td>
                             {value.is_late ? (
-                              <Text color="red">Yes</Text>
+                              <Text size="sm" color="red">
+                                Yes
+                              </Text>
                             ) : (
-                              <Text color="green">No</Text>
+                              <Text size="sm" color="green">
+                                No
+                              </Text>
                             )}
                           </td>
                         </tr>
@@ -150,137 +166,6 @@ const ClassViewProgress: FC<Props> = ({ id, students, current_student }) => {
       </Suspense>
     </Auth>
   )
-
-  /* return (
-    <Class id={id} mode={2}>
-      <div className="h-full flex justify-end py-4">
-        <div className="flex-grow overflow-y-auto md:grid grid-cols-5 w-fit">
-          {current_student != undefined ? (
-            <>
-              <div></div>
-              <div className="w-full px-4 col-span-3">
-                <div className="w-full mx-2">
-                  <div className="text-lg">{current_student.student.name}</div>
-                  <div>{current_student.student.username}</div>
-                </div>
-                <Table
-                  title={progressViewMode}
-                  additionals={
-                    <>
-                      <Select
-                        name="mode"
-                        options={['Exams', 'Assignment']}
-                        className="mb-0"
-                        onChange={(event) => {
-                          setProgressViewMode(
-                            event.target.value as 'Exams' | 'Assignment'
-                          )
-                        }}
-                      />
-                    </>
-                  }
-                >
-                  <thead>
-                    <tr>
-                      <th className="table-header">Title</th>
-                      <th className="table-header">Score</th>
-                      <th className="table-header">Is On Time</th>
-                    </tr>
-                  </thead>
-                  {progressViewMode == 'Assignment' ? (
-                    <tbody>
-                      {current_student.assignments.map((value, index) => (
-                        <tr key={index}>
-                          <td className="table-data">
-                            {value.id != undefined ? (
-                              <Link
-                                href={`/class/${id}/activity/${value.id}/show/${current_student.student.id}`}
-                              >
-                                {value.title}
-                              </Link>
-                            ) : (
-                              <span>{value.title}</span>
-                            )}
-                          </td>
-                          <td className="table-data">
-                            {renderScore(value.score)}
-                          </td>
-                          <td className="table-data">
-                            {value.is_late ? (
-                              <span className="text-red-500">No</span>
-                            ) : (
-                              <span className="text-green-500">Yes</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  ) : (
-                    <tbody>
-                      {current_student.exams.map((value, index) => (
-                        <tr key={index}>
-                          <td className="table-data">
-                            {value.id != undefined ? (
-                              <Link
-                                href={`/class/${id}/activity/${value.id}/show/${current_student.student.id}`}
-                              >
-                                {value.title}
-                              </Link>
-                            ) : (
-                              <span>{value.title}</span>
-                            )}
-                          </td>
-                          <td className="table-data">
-                            {renderScore(value.score)}
-                          </td>
-                          <td className="table-data">
-                            {value.is_late ? (
-                              <span className="text-red-500">No</span>
-                            ) : (
-                              <span className="text-green-500">Yes</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  )}
-                </Table>
-              </div>
-              <div></div>
-            </>
-          ) : (
-            <></>
-          )}
-        </div>
-        {_user.role == 'instructor' ? (
-          <div className="flex-grow-0 border-l border-dark h-full overflow-y-auto px-8 w-max">
-            <div className="mb-2 text-lg">Students</div>
-            {students != undefined ? (
-              <>
-                {students.map((value, index) => (
-                  <Fragment key={index}>
-                    <Link
-                      href={`/class/${id}/overview/progress/${value.id}`}
-                      only={['current_student']}
-                      preserveState
-                      replace
-                      className="w-max"
-                    >
-                      <span className="w-max">{value.name}</span>
-                    </Link>
-                  </Fragment>
-                ))}
-              </>
-            ) : (
-              <></>
-            )}
-          </div>
-        ) : (
-          <></>
-        )}
-      </div>
-    </Class>
-  ) */
 }
 
 export default ClassViewProgress

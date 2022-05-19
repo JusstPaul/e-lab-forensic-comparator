@@ -14,11 +14,10 @@ import {
   Questions,
   Question,
 } from '@/Pages/Auth/Instructor/ClassCreateActivity'
-import Class from '@/Layouts/Class'
 import Auth, { User } from '@/Layouts/Auth'
 import moment from 'moment'
 import CheckBox from '@/Components/CheckBox'
-import { XCircleIcon, AnnotationIcon } from '@heroicons/react/solid'
+import { AnnotationIcon } from '@heroicons/react/solid'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import { Annotation, AnnotationsState } from '../Student/Comparator'
 import {
@@ -34,8 +33,12 @@ import {
   Tooltip,
   Input,
   Button,
+  Alert,
+  Paper,
+  Checkbox,
 } from '@mantine/core'
 import useStyles from '@/Lib/styles'
+import { InformationCircleIcon } from '@heroicons/react/outline'
 
 type Check = {
   isChecked: boolean
@@ -125,12 +128,15 @@ const ClassShowAnswers: FC<Props> = ({
     checks: initializeScores(),
   })
 
+  const { errors: error_bag } = usePage().props
+
   return (
     <Auth class_id={id}>
       <Container size="sm">
         <form
           onSubmit={(event) => {
             event.preventDefault()
+            post(`/class/${id}/activity/${activity_id}/show/${student_id}`)
           }}
         >
           <Box py="lg">
@@ -146,6 +152,7 @@ const ClassShowAnswers: FC<Props> = ({
               Total score: {data.checks.score}/{questions.total_points}
             </Text>
           </Group>
+
           <Stack>
             {questions.questions.questions.map((value, index) => (
               <Popover
@@ -153,9 +160,10 @@ const ClassShowAnswers: FC<Props> = ({
                 withArrow
                 closeOnClickOutside={false}
                 gutter={5}
+                withinPortal
+                key={index}
                 target={
                   <Card
-                    key={index}
                     p="sm"
                     withBorder
                     sx={() => ({
@@ -177,7 +185,12 @@ const ClassShowAnswers: FC<Props> = ({
                         {value.type}
                       </Text>
                       <Group spacing="xs">
-                        <Tooltip label="Add Comment" withArrow>
+                        <Tooltip
+                          label={`${
+                            _user.role == 'instructor' ? 'Add' : 'Open'
+                          }Comment`}
+                          withArrow
+                        >
                           <ActionIcon
                             sx={(theme) => ({
                               color: theme.colors.gray[0],
@@ -205,36 +218,76 @@ const ClassShowAnswers: FC<Props> = ({
                           <>
                             {value.points > 1 ? (
                               <>
-                                <Input
-                                  placeholder={`/${value.points}`}
-                                  sx={() => ({
-                                    width: '4.5rem',
-                                  })}
-                                  onChange={(
-                                    event: ChangeEvent<HTMLInputElement>
-                                  ) => {
-                                    const val = event.target.value
-                                    const nPoint = parseInt(
-                                      val == '' ? '0' : val
-                                    )
-                                    if (
-                                      nPoint <= parseInt(value.points as any) &&
-                                      nPoint >= 0
-                                    ) {
-                                      let nChecked = data.checks
-                                      nChecked.score -=
-                                        nChecked.checks[index].points
-                                      nChecked.checks[index].isChecked = true
-                                      nChecked.checks[index].points = nPoint
-                                      nChecked.score += nPoint
+                                {_user.role == 'instructor' ? (
+                                  <Input
+                                    placeholder={`/${value.points}`}
+                                    type="number"
+                                    sx={() => ({
+                                      width: '4.5rem',
+                                    })}
+                                    value={data.checks.checks[index].points}
+                                    onChange={(
+                                      event: ChangeEvent<HTMLInputElement>
+                                    ) => {
+                                      const val = event.target.value
+                                      const nPoint = parseInt(
+                                        val == '' ? '0' : val
+                                      )
+                                      if (
+                                        nPoint <=
+                                          parseInt(value.points as any) &&
+                                        nPoint >= 0
+                                      ) {
+                                        let nChecked = data.checks
+                                        nChecked.score -=
+                                          nChecked.checks[index].points
+                                        nChecked.checks[index].isChecked = true
+                                        nChecked.checks[index].points = nPoint
+                                        nChecked.score += nPoint
 
-                                      setData({ ...data, checks: nChecked })
+                                        setData({ ...data, checks: nChecked })
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <Text>
+                                    {data.checks.checks[index].points} Points
+                                  </Text>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <Checkbox
+                                  name="check"
+                                  defaultChecked={
+                                    data.checks.checks[index].isChecked
+                                  }
+                                  value={
+                                    data.checks.checks[index].isChecked ? 1 : 0
+                                  }
+                                  disabled={_user.role == 'student'}
+                                  onChange={(event) => {
+                                    const { checked } = event.currentTarget
+                                    let nChecked = data.checks
+                                    nChecked.checks[index].isChecked = checked
+                                    nChecked.checks[index].points = parseInt(
+                                      value.points as any
+                                    )
+
+                                    if (checked) {
+                                      nChecked.score += parseInt(
+                                        value.points as any
+                                      )
+                                    } else {
+                                      nChecked.score -= parseInt(
+                                        value.points as any
+                                      )
                                     }
+
+                                    setData({ ...data, checks: nChecked })
                                   }}
                                 />
                               </>
-                            ) : (
-                              <></>
                             )}
                           </>
                         ) : (
@@ -252,38 +305,57 @@ const ClassShowAnswers: FC<Props> = ({
                   </Card>
                 }
               >
-                <Textarea
-                  autosize
-                  placeholder="Add Comment"
-                  label="Comment"
-                  value={data.checks.checks[index].comment}
-                  onChange={(event) => {
-                    let nCheck = data.checks.checks
-                    nCheck[index].comment = event.target.value
+                <Paper>
+                  {_user.role == 'instructor' ? (
+                    <Textarea
+                      autosize
+                      placeholder="Add Comment"
+                      label="Comment"
+                      value={data.checks.checks[index].comment}
+                      onChange={(event) => {
+                        let nCheck = data.checks.checks
+                        nCheck[index].comment = event.target.value
 
-                    setData({
-                      ...data,
-                      checks: {
-                        ...data.checks,
-                        checks: nCheck,
-                      },
-                    })
-                  }}
-                />
+                        setData({
+                          ...data,
+                          checks: {
+                            ...data.checks,
+                            checks: nCheck,
+                          },
+                        })
+                      }}
+                    />
+                  ) : (
+                    <Text>{data.checks.checks[index].comment}</Text>
+                  )}
+                </Paper>
               </Popover>
             ))}
+            {Object.keys(error_bag).length >= 1 && (
+              <Alert
+                icon={<InformationCircleIcon className={classes.icon} />}
+                title="Check Task Error"
+                color="red"
+              >
+                Please check the answers
+              </Alert>
+            )}
           </Stack>
-          <Group position="right">
-            <Button
-              type="submit"
-              sx={(theme) => ({
-                marginTop: theme.spacing.md,
-              })}
-              loading={processing}
-            >
-              Submit
-            </Button>
-          </Group>
+          {_user.role == 'instructor' ? (
+            <Group position="right">
+              <Button
+                type="submit"
+                sx={(theme) => ({
+                  marginTop: theme.spacing.md,
+                })}
+                loading={processing}
+              >
+                Submit
+              </Button>
+            </Group>
+          ) : (
+            <></>
+          )}
         </form>
       </Container>
     </Auth>
@@ -311,7 +383,19 @@ const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
       return (
         <Box>
           <Text>{question.instruction}</Text>
-          <Box className={classes.answer}>{answer as string}</Box>
+          <Box className={classes.answer}>
+            {question.choices &&
+            question.choices.active &&
+            question.choices.type == 'checkbox' ? (
+              <Stack>
+                {(answer as Array<string>).map((value, index) => (
+                  <Text key={index}>{value}</Text>
+                ))}
+              </Stack>
+            ) : (
+              <>{answer as string}</>
+            )}
+          </Box>
         </Box>
       )
 
@@ -320,15 +404,7 @@ const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
         <Box>
           <Text>{question.instruction}</Text>
           <Box className={classes.answer}>
-            {question.choices && question.choices.type == 'checkbox' ? (
-              <Stack>
-                {(answer as Array<string>).map((value, index) => (
-                  <Text key={index}>{value}</Text>
-                ))}
-              </Stack>
-            ) : (
-              <div dangerouslySetInnerHTML={{ __html: answer as string }}></div>
-            )}
+            <div dangerouslySetInnerHTML={{ __html: answer as string }}></div>
           </Box>
         </Box>
       )

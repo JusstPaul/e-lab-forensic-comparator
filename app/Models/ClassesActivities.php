@@ -28,6 +28,6 @@ class ClassesActivities extends Model
 
     public function activities()
     {
-        return $this->hasMany(ActivitiesAnswer::class, 'id');
+        return $this->hasMany(ActivitiesAnswer::class, 'activity_id');
     }
 }

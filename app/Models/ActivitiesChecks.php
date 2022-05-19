@@ -19,7 +19,7 @@ class ActivitiesChecks extends Model
         'checks' => 'array',
     ];
 
-    public function answers()
+    public function parent()
     {
         return $this->belongsTo(ActivitiesAnswer::class);
     }

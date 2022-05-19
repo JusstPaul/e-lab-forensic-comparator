@@ -31,6 +31,6 @@ class ActivitiesAnswer extends Model
 
     public function checks()
     {
-        return $this->hasMany(ActivitiesChecks::class, 'answer_id');
+        return $this->hasOne(ActivitiesChecks::class, 'answer_id');
     }
 }

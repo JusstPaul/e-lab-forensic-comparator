@@ -177,28 +177,32 @@ class ClassesController extends Controller
 
                 $announcements = $classes->announcements()->get();
                 foreach ($announcements as $announcement) {
+                    $id = Hashids::encode($announcement['id']);
                     array_push($cards, [
                         'type' => 'announcement',
                         'display' => $announcement['text'],
-                        'link' => '/class/' . $class_id . '/announcement/view/' . Hashids::encode($announcement['id']),
+                        'link' => "/class/$class_id/announcement/view/$id",
                         'created_at' => $announcement['created_at'],
                     ]);
                 }
 
                 $activities = ClassesActivities::where('classes_id', $classes->id)->get();
                 foreach ($activities as $activity) {
+                    $id = Hashids::encode($activity['id']);
+
                     if ($role == 'student') {
+                        $class_id = Hashids::encode($classes->id);
                         array_push($cards, [
                             'type' => 'task',
                             'display' => $activity['title'],
-                            'link' => '/class/' . Hashids::encode($classes->id) . '/activity/' . Hashids::encode($activity['id']),
+                            'link' => "/class/$class_id/activity/$id",
                             'created_at' => $activity['created_at'],
                         ]);
                     } else {
                         array_push($cards, [
                             'type' => 'task',
                             'display' => $activity['title'],
-                            'link' => '/class' . '/' . $class_id . '/overview/progress',
+                            'link' => "/class/$class_id/activity/report/$id",
                             'created_at' => $activity['created_at'],
                         ]);
 
@@ -213,24 +217,33 @@ class ClassesController extends Controller
 
                 return $cards;
             },
-            'students' => fn() => $classes->students()
-                ->join('profiles', 'profiles.user_id', '=', 'users.id')
-                ->get()
-                ->map(function ($value) {
-                    $name = null;
-                    if ($value->middle_name == null || $value->middle_name == '') {
-                        $name = $value->last_name . ', ' . $value->first_name . ' ';
-                    } else {
-                        $name = $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.';
-                    }
+            'students' => function () use ($classes) {
+                $students = $classes->students()
+                    ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                    ->get()
+                    ->map(function ($value) {
+                        $name = null;
+                        if ($value->middle_name == null || $value->middle_name == '') {
+                            $name = $value->last_name . ', ' . $value->first_name . ' ';
+                        } else {
+                            $name = $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.';
+                        }
 
-                    return [
-                        'id' => Hashids::encode($value->user_id),
-                        'username' => $value->username,
-                        'name' => $name,
-                        'contact' => $value->contact,
-                    ];
-                }),
+                        return [
+                            'id' => Hashids::encode($value->user_id),
+                            'username' => $value->username,
+                            'name' => $name,
+                            'contact' => $value->contact,
+                        ];
+                    })->toArray();
+
+                usort($students, function ($student1, $student2) {
+                    dd($student1);
+                    return strcmp($student1['name'], $student2['name']);
+                });
+
+                return $students;
+            },
         ]);
     }
 

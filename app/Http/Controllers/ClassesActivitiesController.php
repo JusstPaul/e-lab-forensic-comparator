@@ -138,26 +138,52 @@ class ClassesActivitiesController extends Controller
         if ($answer == null) {
             return redirect('/');
         }
-/*
-$answer = [
-'data' => [
-0 => [
-0 => [
-'essay' => '',
-'image' => '',
-'isKey' => true,
-'filter' => 'none',
-],
-],
-],
-];
- */
+
         return Inertia::render('Auth/Student/Comparator', [
             'id' => $class_id,
             'activity_id' => $activity_id,
             'answer_index' => $answer_index,
             'state_annotation' => $answer['data'][$answer_index]['answer'],
             'question' => fn() => ClassesActivities::find(Hashids::decode($activity_id)[0])->questions[$answer_index],
+        ]);
+    }
+
+    public function show_report($class_id, $activity_id)
+    {
+        return Inertia::render('Auth/Instructor/ClassActivityReport', [
+            'id' => $class_id,
+            'activity' => function () use ($activity_id) {
+                $id = Hashids::decode($activity_id);
+                $activity = ClassesActivities::find($id)->first();
+                $students = $activity->activities()
+                    ->join('users', 'users.id', '=', 'activities_answers.student_id')
+                    ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                    ->get()
+                    ->map(function ($value) {
+                        $name = null;
+                        if ($value->middle_name == null || $value->middle_name == '') {
+                            $name = "$value->last_name, $value->first_name";
+                        } else {
+                            $middle = $value->middle_name[0];
+                            $name = "$value->last_name, $value->first_name $middle.";
+                        }
+
+                        return [
+                            'id' => Hashids::encode($value->activity_id),
+                            'student_id' => Hashids::encode($value->student_id),
+                            'username' => $value->username,
+                            'name' => $name,
+                            'timestamp' => $value->updated_at,
+                        ];
+                    });
+
+                return [
+                    'title' => $activity->title,
+                    'date_end' => $activity->date_end,
+                    'time_end' => $activity->time_end,
+                    'students' => $students,
+                ];
+            },
         ]);
     }
 }

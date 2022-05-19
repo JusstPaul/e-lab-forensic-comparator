@@ -55,6 +55,7 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     Route::get('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'index']);
     Route::get('/class/{class_id}/activity/import', [ClassesActivitiesController::class, 'import_index']);
     Route::get('/class/{class_id}/activity/view/{activity_id}', [ClassesActivitiesController::class, 'view']);
+    Route::get('/class/{class_id}/activity/report/{activity_id}', [ClassesActivitiesController::class, 'show_report']);
     Route::get('/class/{class_id}/announcement/edit/{announcement_id}', [AnnouncementsController::class, 'edit']);
     // POST
     Route::post('/class/create', [ClassesController::class, 'store']);
