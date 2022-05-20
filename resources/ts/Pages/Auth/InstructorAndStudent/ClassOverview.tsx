@@ -28,6 +28,7 @@ import moment from 'moment'
 import { UploadIcon } from '@heroicons/react/outline'
 import Upload from '@/Components/Upload'
 import axios from 'axios'
+import { useModals } from '@mantine/modals'
 
 type Classes = {
   id: string
@@ -104,6 +105,8 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
     }
     return 0
   }
+
+  const modals = useModals()
 
   return (
     <Auth class_id={classes.id}>
@@ -271,11 +274,13 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
                           <></>
                         )}
                       </Box>
-                      <Link
-                        className={_classes.classes.link}
-                        dangerouslySetInnerHTML={{ __html: value.display }}
-                        href={value.link}
-                      ></Link>
+                      <Link className={_classes.classes.link} href={value.link}>
+                        <Text lineClamp={2}>
+                          <div
+                            dangerouslySetInnerHTML={{ __html: value.display }}
+                          ></div>
+                        </Text>
+                      </Link>
                     </Paper>
                   ))}
                 </>

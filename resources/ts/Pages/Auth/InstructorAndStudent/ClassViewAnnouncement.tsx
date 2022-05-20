@@ -1,13 +1,15 @@
-import { FC, useState } from 'react'
+import { FC, useEffect, useState } from 'react'
 import { TrashIcon, PencilAltIcon } from '@heroicons/react/solid'
 import { saveAs } from 'file-saver'
-import { Link, usePage } from '@inertiajs/inertia-react'
+import { Link, useForm, usePage } from '@inertiajs/inertia-react'
 import moment from 'moment'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
-import Class from '@/Layouts/Class'
-import { User } from '@/Layouts/Auth'
-import ConfirmDialog from '@/Components/ConfirmDialog'
+import Auth, { User } from '@/Layouts/Auth'
 import { Inertia } from '@inertiajs/inertia'
+import { Container, Box, Text, Paper, Group, Menu, Button } from '@mantine/core'
+import { useModals } from '@mantine/modals'
+import Editor from '@/Components/Editor'
+import Error from '@/Components/Error'
 
 type Props = {
   id: string
@@ -15,7 +17,7 @@ type Props = {
     id: string
     text: string
     files: Array<string>
-    created_at: string
+    created_at: Date
   }
 }
 
@@ -25,85 +27,114 @@ const ClassViewAnnouncement: FC<Props> = ({ id, announcement }) => {
   const _user = user as User
   const client = s3Client(_aws)
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isEdit, setIsEdit] = useState(false)
+  const [dateStr, setDateStr] = useState('')
+  useEffect(() => {
+    setDateStr(moment(announcement.created_at).fromNow())
+  }, [])
+
+  const { data, setData, post, processing, errors } = useForm({
+    text: announcement.text,
+  })
+
+  const modals = useModals()
+  const openConfirmModal = () =>
+    modals.openConfirmModal({
+      title: 'Delete Announcement',
+      children: <Text>Are you sure you want to delete announcement?</Text>,
+      labels: { confirm: 'Confirm', cancel: 'Cancel' },
+      onCancel: () => {},
+      onClose: () => {},
+      onConfirm: () =>
+        Inertia.post(`/class/${id}/announcement/delete/${announcement.id}`),
+      confirmProps: {
+        sx: (theme) => ({
+          backgroundColor: theme.colors.red[6],
+          ':hover': {
+            backgroundColor: theme.colors.red[7],
+          },
+        }),
+      },
+    })
 
   return (
-    <Class id={id} mode={3}>
-      <div className="container-lg p-4 md:p-8">
-        <div className="w-full md:w-7/12 mx-auto pb-32 md:pb-16">
-          <p className="font-light text-lg w-fit mx-auto mb-4">Announcement</p>
-          <div className="prose card mx-auto">
-            <div className="flex justify-between items-center">
-              <div className="text-sm">
-                Posted:{' '}
-                {moment(announcement.created_at.split('T')[0]).format(
-                  'ddd DD MMMM, h:mm A'
-                )}
-              </div>
-              <div className="flex gap-x-2">
-                {_user.role == 'instructor' ? (
-                  <>
-                    <Link
-                      href={`/class/${id}/announcement/edit/${announcement.id}`}
-                      className="text-green-500"
-                    >
-                      <PencilAltIcon className="icon" />
-                    </Link>
-                    <button
-                      className="text-red-500"
-                      onClick={() => {
-                        setIsDialogOpen(true)
-                      }}
-                    >
-                      <TrashIcon className="icon" />
-                    </button>
-                  </>
+    <Auth class_id={id}>
+      <Container size="sm">
+        <Box py="lg">
+          <Text size="xl" align="center">
+            Announcement
+          </Text>
+          <Text size="xs" align="center">
+            {dateStr}
+          </Text>
+        </Box>
+        <Box py="sm">
+          <Paper p="sm" withBorder>
+            <Box
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Box
+                style={{
+                  width: '100%',
+                }}
+              >
+                {!isEdit ? (
+                  <Text>
+                    <div
+                      dangerouslySetInnerHTML={{ __html: announcement.text }}
+                    ></div>
+                  </Text>
                 ) : (
-                  <></>
-                )}
-              </div>
-            </div>
-            <div className="px-4">
-              <div
-                dangerouslySetInnerHTML={{ __html: announcement.text }}
-              ></div>
-              {announcement.files.length > 0 ? (
-                <div>
-                  <div>Attachments:</div>
-                  <div className="px-4">
-                    {announcement.files.map((value, index) => (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          saveAs(
-                            getFileURL(client, _aws.bucket, value),
-                            value.split('/')[4]
-                          )
-                        }}
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      post(
+                        `/class/${id}/announcement/edit/${announcement.id}`,
+                        {
+                          onSuccess: () => setIsEdit(false),
+                        }
+                      )
+                    }}
+                    style={{
+                      width: '100%',
+                    }}
+                  >
+                    <Editor
+                      autoFocus={true}
+                      name="text"
+                      setContents={data.text}
+                      onChange={(content) => setData({ text: content })}
+                    />
+                    <Group position="right" my="sm">
+                      <Button
+                        type="submit"
+                        loading={processing}
+                        className="sr-only"
                       >
-                        {value.split('/')[4]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        Post
+                      </Button>
+                    </Group>
+                  </form>
+                )}
+              </Box>
+              {_user.role == 'instructor' ? (
+                <Menu withArrow>
+                  <Menu.Item onClick={() => setIsEdit(!isEdit)}>Edit</Menu.Item>
+                  <Menu.Item onClick={() => openConfirmModal()}>
+                    Delete
+                  </Menu.Item>
+                </Menu>
               ) : (
                 <></>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-      <ConfirmDialog
-        isOpen={isDialogOpen}
-        title="Delete announcement"
-        onClose={() => setIsDialogOpen(false)}
-        onConfirm={() => {
-          Inertia.post(`/class/${id}/announcement/delete/${announcement.id}`)
-        }}
-      >
-        Do you want to delete this announcement?
-      </ConfirmDialog>
-    </Class>
+            </Box>
+          </Paper>
+        </Box>
+      </Container>
+    </Auth>
   )
 }
 
