@@ -1,4 +1,11 @@
-import { FC, ChangeEvent, useState, useRef, useEffect } from 'react'
+import {
+  FC,
+  ChangeEvent,
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react'
 import { useForm, usePage } from '@inertiajs/inertia-react'
 import {
   PlusCircleIcon,
@@ -23,6 +30,7 @@ import {
   Checkbox,
   Image,
   Alert,
+  Portal,
 } from '@mantine/core'
 import Input from '@/Components/Input'
 import Selection from '@/Components/Selection'
@@ -32,6 +40,7 @@ import useStyles from '@/Lib/styles'
 import { useMediaQuery, useViewportSize } from '@mantine/hooks'
 import Upload from '@/Components/Upload'
 import dayjs from 'dayjs'
+import ImageViewer from 'react-simple-image-viewer'
 
 export type Activity = 'assignment' | 'exam'
 
@@ -65,6 +74,7 @@ type RenderItemsProps = {
     questions: Questions
   }
   setData: Function
+  onImageOpen: Function
 }
 
 const RenderItems: FC<RenderItemsProps> = ({
@@ -74,6 +84,7 @@ const RenderItems: FC<RenderItemsProps> = ({
   setOffset,
   data,
   setData,
+  onImageOpen,
 }) => {
   const classes = useStyles()
 
@@ -361,6 +372,17 @@ const RenderItems: FC<RenderItemsProps> = ({
                       height={200}
                       withPlaceholder
                       fit="contain"
+                      style={{
+                        cursor: 'pointer',
+                      }}
+                      onClick={() =>
+                        onImageOpen(
+                          Array.from(currentValue.files as FileList).map(
+                            (value) => URL.createObjectURL(value)
+                          ),
+                          idx
+                        )
+                      }
                     />
                   )
                 )}
@@ -397,6 +419,19 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
       return width - (continerWidth + halfWidth + 200)
     }
     return 10
+  }
+
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false)
+  const [currentImageOpen, setCurrentImageOpen] = useState(0)
+  const [currentImages, setCurrentImages] = useState<Array<string>>([])
+
+  const openImageViewer = useCallback((index: number) => {
+    setCurrentImageOpen(index)
+    setIsImageViewerOpen(true)
+  }, [])
+  const closeImageViewer = () => {
+    setCurrentImageOpen(0)
+    setIsImageViewerOpen(false)
   }
 
   const [numberingOffset, setNumberingOffset] = useState(0)
@@ -483,7 +518,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
   }
 
   return (
-    <Auth class_id={id}>
+    <Auth class_id={id} isNavHidden={isImageViewerOpen}>
       <Container size="sm" ref={containerRef}>
         <form
           onSubmit={(event) => {
@@ -638,6 +673,10 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                   setOffset={setNumberingOffset}
                   data={data}
                   setData={setData}
+                  onImageOpen={(images: Array<string>, index: number) => {
+                    setCurrentImages(images)
+                    openImageViewer(index)
+                  }}
                 />
               </Box>
             </Card>
@@ -661,6 +700,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
           bottom: atLeastMd ? height / 2 - 60 : 10,
           right: getRightMenuLocation(),
         }}
+        zIndex={5}
       >
         <Card p="xs" withBorder>
           <Stack>
@@ -699,6 +739,17 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
           </Stack>
         </Card>
       </Affix>
+      <Portal zIndex={20} position="absolute">
+        {isImageViewerOpen && (
+          <ImageViewer
+            src={currentImages}
+            currentIndex={currentImageOpen}
+            disableScroll={false}
+            closeOnClickOutside={true}
+            onClose={closeImageViewer}
+          />
+        )}
+      </Portal>
     </Auth>
   )
 }

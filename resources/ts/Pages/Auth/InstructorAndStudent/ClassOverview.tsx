@@ -1,4 +1,4 @@
-import { FC, useState, Fragment, useEffect, Suspense } from 'react'
+import { FC, Suspense } from 'react'
 import { usePage, useForm, Link } from '@inertiajs/inertia-react'
 import {
   Box,
@@ -11,24 +11,19 @@ import {
   Menu,
   Tabs,
   Table,
-  InputWrapper,
-  ThemeIcon,
   Group,
   Checkbox,
-  ScrollArea,
 } from '@mantine/core'
 import { User } from '@/Layouts/Auth'
 import Auth from '@/Layouts/Auth'
 import Editor from '@/Components/Editor'
-import FileInput from '@/Components/FileInput'
 import Error from '@/Components/Error'
 import { Inertia } from '@inertiajs/inertia'
 import useStyle from '@/Lib/styles'
 import moment from 'moment'
-import { UploadIcon } from '@heroicons/react/outline'
 import Upload from '@/Components/Upload'
-import axios from 'axios'
 import { useModals } from '@mantine/modals'
+import { FileIcon, defaultStyles } from 'react-file-icon'
 
 type Classes = {
   id: string

@@ -9,9 +9,8 @@ import {
 } from 'react'
 import { Inertia } from '@inertiajs/inertia'
 import { Link, usePage } from '@inertiajs/inertia-react'
-import { useControls, Leva, button, buttonGroup } from 'leva'
 import ImageViewer from 'react-simple-image-viewer'
-import Class from '@/Layouts/Class'
+import Auth from '@/Layouts/Auth'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import Editor from '@/Components/Editor'
 import html2canvas from 'html2canvas'
@@ -20,13 +19,29 @@ import * as markerjs2 from 'markerjs2'
 import { XCircleIcon } from '@heroicons/react/solid'
 import Select from '@/Components/Select'
 import { Question } from '../Instructor/ClassCreateActivity'
+import {
+  Box,
+  Button,
+  Card,
+  Container,
+  Group,
+  Image,
+  Paper,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+} from '@mantine/core'
+import Selection from '@/Components/Selection'
+import { toBlob } from 'html-to-image'
+
+type FilterProps = 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
 
 export type Annotation = {
   image: File | string
   isKey: boolean
   essay: string
   state?: markerjs2.MarkerAreaState
-  filter: 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
 }
 export type AnnotationsState = Array<Annotation>
 
@@ -49,357 +64,71 @@ const Comparator: FC<Props> = ({
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
 
-  const questionImages = question.files as Array<string>
-  const [questionImagesIndex, seQuestionImagesIndex] = useState({
-    left: 0,
-    right: 1,
-  })
+  const [selectMode, setSelectMode] = useState<'left' | 'right'>('left')
+  const [isImagePreview, setIsImagePreview] = useState(false)
+
+  // Comparator
+  const [images, setImages] = useState<Array<string>>([])
+  const [leftIndex, setLeftIndex] = useState(0)
+  const [rightIndex, setRightIndex] = useState(1)
+  useEffect(() => {
+    const questionImages = question.files as Array<string>
+    const imgs = questionImages.map((value) =>
+      getFileURL(client, _aws.bucket, value)
+    )
+
+    setImages(imgs)
+  }, [])
+
+  const [filter, setFilter] = useState<FilterProps>('none')
 
   const [annotations, setAnnotations] = useState<Array<Annotation>>(
     state_annotation ? state_annotation : []
   )
 
-  console.log(state_annotation)
-
-  const [leftSrc, setLeftSrc] = useState('')
-  const [rightSrc, setRightSrc] = useState('')
-
-  const [currentImage, setCurrentImage] = useState(0)
-  const [isViewerOpen, setIsViewerOpen] = useState(false)
-
-  const images = questionImages.map((value) =>
-    getFileURL(client, _aws.bucket, value)
-  )
-
-  const openImageViewer = useCallback((index: number) => {
-    setCurrentImage(index)
-    setIsViewerOpen(true)
-  }, [])
-
-  const closeImageViewer = useCallback(() => {
-    setCurrentImage(0)
-    setIsViewerOpen(false)
-  }, [])
-
-  const workSpaceRef = useRef<HTMLDivElement>(null)
-
-  const updateImages = () => {
-    setLeftSrc(
-      getFileURL(client, _aws.bucket, questionImages[questionImagesIndex.left])
-    )
-    setRightSrc(
-      getFileURL(client, _aws.bucket, questionImages[questionImagesIndex.right])
-    )
-  }
-
-  useEffect(() => {
-    updateImages()
-  }, [])
-
-  useEffect(() => {
-    updateImages()
-  }, [questionImagesIndex])
-
-  const croppedRef = useRef<HTMLDivElement>(null)
-  const [{ preview, select: selectMode }, setGeneral] = useControls(
-    'General',
-    () => ({
-      select: {
-        value: 'left',
-        options: ['left', 'right'],
-      },
-      ' ': buttonGroup({
-        left: () => {
-          setGeneral({ select: 'left' })
-        },
-        right: () => {
-          setGeneral({ select: 'right' })
-        },
-      }),
-      preview: false,
-      'add screenshot': button(() => {
-        if (croppedRef.current) {
-          html2canvas(croppedRef.current, {
-            allowTaint: true,
-            useCORS: true,
-          }).then((canvas) => {
-            canvas.toBlob((blob) => {
-              if (blob) {
-                const nAnnotations = annotations
-                nAnnotations.push({
-                  essay: '',
-                  image: new File(
-                    [blob],
-                    `comparator-${id}-${activity_id}-${answer_index}-${annotations.length}.png`,
-                    {
-                      type: 'image/png',
-                      lastModified: new Date().valueOf(),
-                    }
-                  ),
-                  filter: 'none',
-                  isKey: false,
-                })
-                setAnnotations([...nAnnotations])
-              }
-            })
-          })
-        }
-      }),
-    })
-  )
-
-  const Comparator = () => {
-    const [leftCrop, setLeftCrop] = useState({ x: 0, y: 0 })
-    const [leftZoom, setLeftZoom] = useState(1)
-    const [leftCroppedArea, setLeftCroppedArea] = useState<Area>()
-
-    const [rightCrop, setRightCrop] = useState({ x: 0, y: 0 })
-    const [rightZoom, setRightZoom] = useState(1)
-    const [rightCroppedArea, setRightCroppedArea] = useState<Area>()
-
-    const ASPECT = 3 / 2
-
-    const View = ({ croppedArea, url }: { croppedArea: Area; url: string }) => {
-      const scale = 100 / croppedArea.width
-      const transform = {
-        x: `${-croppedArea.x * scale}%`,
-        y: `${-croppedArea.y * scale}%`,
-        scale,
-        width: 'calc(100% + 0.5px)',
-        height: 'auto',
-      }
-
-      const imageStyle = {
-        transform: `translate3d(${transform.x}, ${transform.y}, 0) scale3d(${transform.scale}, ${transform.scale}, 1)`,
-        width: transform.width,
-        height: transform.height,
-      } as CSSProperties
-
-      return (
-        <div
-          style={{
-            paddingBottom: `${100 / ASPECT}%`,
-            width: 500,
-            height: 500,
-            overflow: 'hidden',
-          }}
-        >
-          <img
-            src={url}
-            style={{
-              ...imageStyle,
-              height: 500,
-              overflow: 'hidden',
-            }}
-          />
-        </div>
-      )
+  const setFilterView = (): CSSProperties => {
+    switch (filter) {
+      case 'hue':
+        return { filter: 'hue-rotate(180deg)' }
+      case 'hue':
+        return { filter: 'hue-rotate(180deg)' }
+      case 'sepia':
+        return { filter: 'sepia(100%)' }
+      case 'saturate':
+        return { filter: 'saturate(4)' }
+      case 'grayscale':
+        return { filter: 'grayscale(100%)' }
+      case 'none':
+      default:
+        return {}
     }
-
-    return (
-      <>
-        <div className={``}>
-          <div
-            ref={croppedRef}
-            className="mt-4 flex gap-0 rounded-md shadow-sm"
-            style={{
-              height: 350,
-              overflow: 'hidden',
-            }}
-          >
-            {leftCroppedArea ? (
-              <View url={leftSrc} croppedArea={leftCroppedArea} />
-            ) : (
-              <span className="mx-2">Unable to load Left Image</span>
-            )}
-            {rightCroppedArea ? (
-              <View url={rightSrc} croppedArea={rightCroppedArea} />
-            ) : (
-              <span className="mx-2">Unable to load Right Image</span>
-            )}
-          </div>
-          <div
-            className="z-10 mt-4 flex justify-center gap-4 overflow-x-auto overflow-y-hidden"
-            style={{
-              height: 300,
-              width: 900,
-            }}
-          >
-            <div
-              className="relative"
-              style={{
-                width: 300,
-                height: 300,
-                overflow: 'hidden',
-              }}
-            >
-              <Cropper
-                image={leftSrc}
-                aspect={ASPECT}
-                onCropChange={setLeftCrop}
-                crop={leftCrop}
-                onZoomChange={setLeftZoom}
-                zoom={leftZoom}
-                onCropAreaChange={(croppedArea) => {
-                  setLeftCroppedArea(croppedArea)
-                }}
-                style={{
-                  containerStyle: {
-                    width: 300,
-                    height: 300,
-                    overflow: 'hidden',
-                  },
-                }}
-              />
-            </div>
-            <div
-              className="relative"
-              style={{
-                width: 300,
-                height: 300,
-                overflow: 'hidden',
-              }}
-            >
-              <Cropper
-                image={rightSrc}
-                aspect={ASPECT}
-                onCropChange={setRightCrop}
-                crop={rightCrop}
-                onZoomChange={setRightZoom}
-                zoom={rightZoom}
-                onCropAreaChange={(croppedArea) => {
-                  setRightCroppedArea(croppedArea)
-                }}
-                style={{
-                  containerStyle: {
-                    width: 300,
-                    height: 300,
-                    overflow: 'hidden',
-                  },
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </>
-    )
   }
 
-  const Marker = ({ index, value }: { index: number; value: Annotation }) => {
-    const getStyle = (
-      filter: 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
-    ): CSSProperties => {
-      switch (filter) {
-        case 'none':
-          return {}
-        case 'hue':
-          return { filter: 'hue-rotate(180deg)' }
-        case 'sepia':
-          return { filter: 'sepia(100%)' }
-        case 'saturate':
-          return { filter: 'saturate(4)' }
-        case 'grayscale':
-          return { filter: 'grayscale(100%)' }
-      }
-    }
+  const [leftCrop, setLeftCrop] = useState({ x: 0, y: 0 })
+  const [leftZoom, setLeftZoom] = useState(1)
+  const [leftCroppedArea, setLeftCroppedArea] = useState<Area>()
 
-    const ref = useRef<HTMLImageElement>(null)
-    const url = value.isKey
-      ? getFileURL(client, _aws.bucket, value.image as string)
-      : URL.createObjectURL(value.image as File)
-    const [filterStyle, setFilterStyle] = useState(getStyle(value.filter))
+  const [rightCrop, setRightCrop] = useState({ x: 0, y: 0 })
+  const [rightZoom, setRightZoom] = useState(1)
+  const [rightCroppedArea, setRightCroppedArea] = useState<Area>()
 
-    return (
-      <div className="mx-auto w-fit mb-4 card relative">
-        <div className="card-legend capitalize flex justify-between">
-          <span>Screenshot #{index + 1}</span>
-          <button
-            type="button"
-            onClick={() => {
-              const nAnnotations = [...annotations]
-              nAnnotations.splice(index, 1)
+  const ASPECT = 3 / 2
 
-              setAnnotations([...nAnnotations])
-            }}
-          >
-            <XCircleIcon className="icon" />
-          </button>
-        </div>
-
-        <div className="card-legend-body py-2">
-          <img
-            src={url}
-            ref={ref}
-            style={filterStyle}
-            onClick={() => {
-              if (ref.current) {
-                const markerArea = new markerjs2.MarkerArea(ref.current)
-                markerArea.settings.displayMode = 'popup'
-                markerArea.addEventListener('render', (event) => {
-                  if (ref.current) {
-                    ref.current.src = event.dataUrl
-                    const nAnnotations = annotations
-                    nAnnotations[index] = {
-                      ...nAnnotations[index],
-                      state: event.state,
-                    }
-                  }
-                })
-
-                markerArea.show()
-              }
-            }}
-            className="mb-2 cursor-pointer"
-          />
-          <div>
-            <Select
-              name="select-filter"
-              label="Filter"
-              options={['none', 'hue', 'sepia', 'saturate', 'grayscale']}
-              value={value.filter}
-              onChange={(event) => {
-                const { value } = event.target
-                const nAnnotations = annotations
-                nAnnotations[index].filter = value as any
-
-                setAnnotations(nAnnotations)
-                setFilterStyle(getStyle(value as any))
-              }}
-              className="w-fit"
-            />
-          </div>
-          <Editor
-            setContents={value.essay}
-            onChange={(content) => {
-              const nAnnotations = annotations
-              nAnnotations[index].essay = content
-
-              setAnnotations(nAnnotations)
-            }}
-          />
-        </div>
-      </div>
-    )
-  }
+  const containerRef = useRef<HTMLDivElement>(null)
 
   return (
-    <Class id={id} mode={3}>
-      <div className="pt-4 pb-2 px-4 border-b border-dark flex justify-between">
-        <div className="text-sm">{question.instruction}</div>
-        <div className="flex gap-4">
-          <div className="flex gap-4">
-            <div className="flex items-end"></div>
-          </div>
-          <div>
-            <Link
-              className="btn-alt mr-2"
+    <Auth class_id={id}>
+      <Container size="xl">
+        <Box>
+          <Group position="right">
+            <Button
+              color="gray"
+              component={Link}
               href={`/class/${id}/activity/${activity_id}`}
             >
               Cancel
-            </Link>
-            <button
-              type="button"
-              className="btn-primary"
+            </Button>
+            <Button
               onClick={() => {
                 Inertia.post(
                   `/class/${id}/activity/${activity_id}/index/${answer_index}`,
@@ -410,97 +139,367 @@ const Comparator: FC<Props> = ({
               }}
             >
               Done
-            </button>
-          </div>
-        </div>
-      </div>
-      <div ref={workSpaceRef} className="mt-4 px-2 h-fit">
-        <div className="flex h-full overflow-x-auto px-6 py-2 md:px-12 mx-auto">
-          <div className="max-w-[180px] w-full col-span-2">
-            <Leva
-              theme={{
-                colors: {
-                  elevation1: '#E2E8F0',
-                  elevation2: '#F1F5F9',
-                  elevation3: '#E2E8F0',
-                  accent1: '#14B8A6',
-                  accent2: '#2DD4BF',
-                  accent3: '#5EEAD4',
-                  highlight1: '#1F2937',
-                  highlight2: '#111827',
-                  highlight3: '#111827',
-                  folderWidgetColor: '#111827',
-                  folderTextColor: '#111827',
-                },
-              }}
-              fill
-              flat
-              titleBar={false}
-              oneLineLabels={true}
-            />
-          </div>
-          <div className="flex-grow-0 w-full">
-            <div className="flex gap-2 overflow-x-auto md:px-12 px-4 py-2">
-              {questionImages.map((value, index) => (
-                <img
-                  key={index}
-                  className={
-                    'w-16 h-16 rounded-md cursor-pointer ' +
-                    ((index == questionImagesIndex.left ||
-                      index == questionImagesIndex.right) &&
-                      'border-2 border-primary')
-                  }
-                  src={getFileURL(client, _aws.bucket, value)}
-                  onClick={() => {
-                    if (preview) {
-                      openImageViewer(index)
-                    } else {
-                      if (selectMode == 'left') {
-                        seQuestionImagesIndex({
-                          ...questionImagesIndex,
-                          left: index,
-                        })
-                      } else {
-                        seQuestionImagesIndex({
-                          ...questionImagesIndex,
-                          right: index,
-                        })
-                      }
-                    }
-                  }}
-                />
-              ))}
-            </div>
-            <div className="mx-auto w-fit">
-              <Comparator />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        {annotations.map((value, index) => (
-          <Marker index={index} value={value} key={index} />
-        ))}
-      </div>
-
-      <div className="px-4 py-2 w-3/6 mx-auto"></div>
-      {isViewerOpen ? (
-        <ImageViewer
-          src={images}
-          currentIndex={currentImage}
-          disableScroll={false}
-          closeOnClickOutside={true}
-          onClose={closeImageViewer}
-          backgroundStyle={{
-            background: 'rgba(0, 0, 0, 0.9)',
-            zIndex: 20,
+            </Button>
+          </Group>
+        </Box>
+        <Box
+          style={{
+            display: 'flex',
           }}
-        />
-      ) : (
-        <></>
-      )}
-    </Class>
+          py="sm"
+        >
+          <Stack
+            style={{
+              maxWidth: '200px',
+            }}
+          >
+            <Button
+              onClick={() => {
+                if (containerRef.current) {
+                  toBlob(containerRef.current, {
+                    quality: 1,
+                  })
+                    .then((blob) => {
+                      if (blob) {
+                        const date = new Date().valueOf()
+                        const nAnnotations = annotations
+                        const file = new File(
+                          [blob],
+                          `comparator-${id}-${activity_id}-${answer_index}-${annotations.length}-${date}.png`,
+                          {
+                            type: 'image/png',
+                            lastModified: date,
+                          }
+                        )
+
+                        nAnnotations.push({
+                          essay: '',
+                          image: file,
+                          isKey: false,
+                        })
+
+                        setAnnotations([...nAnnotations])
+                        setFilter('none')
+                      }
+                    })
+                    .catch((error) => {
+                      alert('An Error Occured')
+                      console.error(error)
+                    })
+                }
+              }}
+            >
+              Screenshot
+            </Button>
+
+            <Selection
+              selectProps={{
+                label: 'Filter',
+                value: filter,
+                data: [
+                  { value: 'none', label: 'None' },
+                  { value: 'hue', label: 'Hue' },
+                  { value: 'sepia', label: 'Sepia' },
+                  { value: 'saturate', label: 'Saturate' },
+                  { value: 'grayscale', label: 'Grayscale' },
+                ],
+                onChange: (value) => setFilter(value as any),
+              }}
+            />
+
+            <Selection
+              selectProps={{
+                label: 'Select Mode',
+                value: selectMode,
+                data: [
+                  { value: 'left', label: 'Left' },
+                  { value: 'right', label: 'Right' },
+                ],
+                onChange: (value) => setSelectMode(value as any),
+              }}
+            />
+            <Switch
+              label={`Preview Image`}
+              checked={isImagePreview}
+              onChange={(event) =>
+                setIsImagePreview(event.currentTarget.checked)
+              }
+            />
+
+            <Text>Images</Text>
+            {images.map((value, index) => (
+              <Image
+                src={value}
+                key={index}
+                sx={(theme) => ({
+                  cursor: 'pointer',
+                  borderWidth: '1rem',
+                  borderColor:
+                    leftIndex == index || rightIndex == index
+                      ? theme.colors.cyan[7]
+                      : theme.colors.gray[7],
+                })}
+                onClick={() => {
+                  if (!isImagePreview) {
+                    switch (selectMode) {
+                      case 'left':
+                        setLeftIndex(index)
+                        break
+                      case 'right':
+                        setRightIndex(index)
+                    }
+                  }
+                }}
+              />
+            ))}
+          </Stack>
+          <Container size="xl">
+            <Paper
+              ref={containerRef}
+              style={{
+                display: 'flex',
+              }}
+              withBorder
+            >
+              <Skeleton visible={leftCroppedArea == undefined} radius={0}>
+                {leftCroppedArea ? (
+                  <View
+                    url={images[leftIndex]}
+                    croppedArea={leftCroppedArea}
+                    aspect={ASPECT}
+                    filter={setFilterView()}
+                  />
+                ) : (
+                  <></>
+                )}
+              </Skeleton>
+
+              <Skeleton visible={rightCroppedArea == undefined} radius={0}>
+                {rightCroppedArea ? (
+                  <View
+                    url={images[rightIndex]}
+                    croppedArea={rightCroppedArea}
+                    aspect={ASPECT}
+                    filter={setFilterView()}
+                  />
+                ) : (
+                  <></>
+                )}
+              </Skeleton>
+            </Paper>
+            <Box
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                width: '100%',
+                height: '50vh',
+              }}
+              py="sm"
+            >
+              <Box
+                style={{
+                  position: 'relative',
+                  height: '50vh',
+                  width: 300,
+                  overflow: 'hidden',
+                }}
+              >
+                <Cropper
+                  image={images[leftIndex]}
+                  aspect={ASPECT}
+                  onCropChange={setLeftCrop}
+                  crop={leftCrop}
+                  onZoomChange={setLeftZoom}
+                  zoom={leftZoom}
+                  onCropAreaChange={(croppedArea) =>
+                    setLeftCroppedArea(croppedArea)
+                  }
+                />
+              </Box>
+
+              <Box
+                style={{
+                  position: 'relative',
+                  height: '50vh',
+                  width: 300,
+                  overflow: 'hidden',
+                }}
+              >
+                <Cropper
+                  image={images[rightIndex]}
+                  aspect={ASPECT}
+                  onCropChange={setRightCrop}
+                  crop={rightCrop}
+                  onZoomChange={setRightZoom}
+                  zoom={rightZoom}
+                  onCropAreaChange={(croppedArea) =>
+                    setRightCroppedArea(croppedArea)
+                  }
+                />
+              </Box>
+            </Box>
+          </Container>
+        </Box>
+        <Container size="sm" py="lg">
+          <Stack>
+            {annotations.map((value, index) => (
+              <Card
+                key={index}
+                p="sm"
+                withBorder
+                sx={() => ({
+                  marginBottom: '1rem',
+                })}
+              >
+                <Card.Section
+                  p="sm"
+                  sx={(theme) => ({
+                    backgroundColor: theme.colors.cyan[7],
+                    color: theme.colors.gray[0],
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'end',
+                  })}
+                >
+                  <Text transform="capitalize">Annotation #{index + 1}</Text>
+                </Card.Section>
+                <Box py="sm">
+                  <Marker
+                    index={index}
+                    value={value}
+                    annotations={annotations}
+                    setAnnotations={setAnnotations}
+                  />
+                </Box>
+              </Card>
+            ))}
+          </Stack>
+        </Container>
+      </Container>
+    </Auth>
+  )
+}
+
+type MarkerProps = {
+  index: number
+  value: Annotation
+  annotations: Array<Annotation>
+  setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>
+}
+const Marker: FC<MarkerProps> = ({
+  index,
+  value,
+  annotations,
+  setAnnotations,
+}) => {
+  const { aws } = usePage().props
+  const _aws = aws as S3PageProps
+  const client = s3Client(_aws)
+
+  const [url, setUrl] = useState('')
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  const [annotate, setAnnotate] = useState(value)
+
+  useEffect(() => {
+    if (value.isKey) {
+      const getUrl = getFileURL(client, _aws.bucket, value.image as string)
+      setUrl(getUrl)
+    } else {
+      setUrl(URL.createObjectURL(value.image as File))
+    }
+  }, [])
+
+  useEffect(() => {
+    let nAnnotations = annotations
+    nAnnotations[index] = annotate
+    setAnnotations(nAnnotations)
+  }, [annotate])
+
+  return (
+    <Stack>
+      <img
+        src={url}
+        ref={imgRef}
+        style={{
+          cursor: 'pointer',
+        }}
+        onClick={() => {
+          if (imgRef.current) {
+            const markerArea = new markerjs2.MarkerArea(imgRef.current)
+            markerArea.addEventListener('render', (event) => {
+              if (imgRef.current) {
+                imgRef.current.src = event.dataUrl
+                setAnnotate({ ...annotate, state: event.state })
+              }
+            })
+            markerArea.settings.displayMode = 'popup'
+            markerArea.renderAtNaturalSize = true
+            markerArea.renderImageType = 'image/png'
+            markerArea.renderImageQuality = 1.0
+            markerArea.show()
+
+            if (annotate.state) {
+              markerArea.restoreState(annotate.state)
+            }
+          }
+        }}
+      />
+
+      <Editor
+        setContents={annotate.essay}
+        name={`essay-${index}`}
+        onChange={(value) => setAnnotate({ ...annotate, essay: value })}
+      />
+    </Stack>
+  )
+}
+
+type ViewProps = {
+  croppedArea: Area
+  url: string
+  aspect: number
+  filter: CSSProperties
+}
+
+const View: FC<ViewProps> = ({ croppedArea, url, aspect, filter }) => {
+  const scale = 100 / croppedArea.width
+  const transform = {
+    x: `${-croppedArea.x * scale}%`,
+    y: `${-croppedArea.y * scale}%`,
+    scale,
+    width: 'calc(100% + 0.5px)',
+    height: 'auto',
+  }
+
+  const imageStyle: CSSProperties = {
+    transform: `translate3d(${transform.x}, ${transform.y}, 0) scale3d(${transform.scale},${transform.scale},1)`,
+    width: transform.width,
+    height: transform.height,
+  }
+
+  return (
+    <div
+      style={{
+        paddingBottom: `${100 / aspect}%`,
+        width: '400px',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <img
+        src={url}
+        style={{
+          ...imageStyle,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          transformOrigin: 'top left',
+          ...filter,
+        }}
+        crossOrigin="anonymous"
+      />
+    </div>
   )
 }
 

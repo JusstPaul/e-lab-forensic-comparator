@@ -16,14 +16,12 @@ import {
   MediaQuery,
   Group,
   Stack,
-  Center,
   ThemeIcon,
   Accordion,
 } from '@mantine/core'
 import { useDisclosure, useMediaQuery } from '@mantine/hooks'
 import {
   PlusIcon,
-  MenuIcon,
   ChevronDownIcon,
   BadgeCheckIcon,
 } from '@heroicons/react/outline'
@@ -55,6 +53,7 @@ type Props = PropsWithChildren<{
   class_id?: string
   students?: Array<Student>
   onModals?: Function
+  isNavHidden?: boolean
 }>
 
 type CreateUserFormProps = {
@@ -231,7 +230,14 @@ const CreateClassForm: FC<CreateClassFormProps> = ({ onCreateClass }) => {
   )
 }
 
-const Auth = ({ title, class_id, onModals, students, children }: Props) => {
+const Auth = ({
+  title,
+  class_id,
+  onModals,
+  students,
+  children,
+  isNavHidden,
+}: Props) => {
   const [headTitle, setHeadTitle] = useState('e-Lab Forensic Comparator')
   useEffect(() => {
     if (title) {
@@ -258,7 +264,6 @@ const Auth = ({ title, class_id, onModals, students, children }: Props) => {
     <>
       <Head title={headTitle} />
       <AppShell
-        fixed
         styles={(theme) => ({
           main: {
             backgroundColor: theme.colors.gray[1],
@@ -266,8 +271,10 @@ const Auth = ({ title, class_id, onModals, students, children }: Props) => {
             position: 'relative',
           },
         })}
+        fixed={!isNavHidden}
         navbarOffsetBreakpoint="sm"
         navbar={
+          !isNavHidden &&
           url !== '/no-class-yet' &&
           _user.name &&
           _user.name.length > 0 &&

@@ -35,6 +35,7 @@ import {
   Button,
   Alert,
   Paper,
+  Image,
   Checkbox,
 } from '@mantine/core'
 import useStyles from '@/Lib/styles'
@@ -410,8 +411,21 @@ const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
       )
 
     case 'comparator':
-      alert('Comparator!')
-      return <></>
+      return (
+        <Box>
+          <Text>{question.instruction}</Text>
+          <Stack>
+            {(answer as AnnotationsState).map((value, index) => (
+              <Box key={index}>
+                <Marker {...value} />
+                <Box className={classes.answer}>
+                  <div dangerouslySetInnerHTML={{ __html: value.essay }}></div>
+                </Box>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      )
 
     default:
       return (
@@ -420,6 +434,34 @@ const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
         </Text>
       )
   }
+}
+
+const Marker: FC<Annotation> = (props) => {
+  const { user, aws } = usePage().props
+  const _user = user as User
+
+  const _aws = aws as S3PageProps
+  const client = s3Client(_aws)
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  const [url, setUrl] = useState('')
+  useEffect(() => {
+    setUrl(getFileURL(client, _aws.bucket, props.image as string))
+  }, [])
+
+  return (
+    <Image
+      src={url}
+      ref={imgRef}
+      style={{
+        cursor: 'pointer',
+      }}
+      onClick={() => {
+        if (imgRef.current) {
+        }
+      }}
+    />
+  )
 }
 
 export default ClassShowAnswers

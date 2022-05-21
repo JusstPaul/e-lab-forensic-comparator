@@ -180,7 +180,8 @@ const RenderItems: FC<RenderItemsProps> = ({
             type="button"
             onClick={() => {
               Inertia.post(
-                `/class/${id}/activity/${activity_id}/comparator/${index}`
+                `/class/${id}/activity/${activity_id}/comparator/${index}`,
+                data as any
               )
             }}
           >
@@ -243,8 +244,51 @@ const ActivityAnswer: FC<Props> = ({
   const initializeAnswers = () => {
     if (cached_answer) {
       // TODO: With comparator
-      alert('Comparator!')
-      console.log(cached_answer)
+      return {
+        ...cached_answer,
+        data: cached_answer.data.map((value, index) => {
+          switch (activity.questions[index].type) {
+            case 'directions':
+              return value
+
+            case 'question':
+              if (value.answer == null) {
+                if (activity.questions[index].choices != undefined) {
+                  const { active, type, data } =
+                    activity.questions[index].choices!
+                  if (active) {
+                    if (type == 'checkbox') {
+                      return {
+                        ...value,
+                        answer: '',
+                      }
+                    } else if (type == 'radio') {
+                      return {
+                        ...value,
+                        answer: [data[0]],
+                      }
+                    }
+                  } else {
+                    return { ...value, answer: '' }
+                  }
+                } else {
+                  return { ...value, answer: '' }
+                }
+              }
+              return value
+            // @ts-expect-error
+            case 'essay':
+              if (value.answer == null) {
+                return { ...value, answer: '' }
+              }
+            case 'directions':
+            case 'comparator':
+              return value
+            default:
+              return { ...value, answer: '' }
+          }
+        }),
+      }
     }
 
     return {
