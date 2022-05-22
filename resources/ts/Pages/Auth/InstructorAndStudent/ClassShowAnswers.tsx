@@ -437,8 +437,7 @@ const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
 }
 
 const Marker: FC<Annotation> = (props) => {
-  const { user, aws } = usePage().props
-  const _user = user as User
+  const { aws } = usePage().props
 
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
@@ -447,17 +446,38 @@ const Marker: FC<Annotation> = (props) => {
   const [url, setUrl] = useState('')
   useEffect(() => {
     setUrl(getFileURL(client, _aws.bucket, props.image as string))
+
+    if (imgRef.current) {
+      imgRef.current.crossOrigin = 'anonymous'
+    }
   }, [])
 
   return (
-    <Image
+    <img
       src={url}
       ref={imgRef}
       style={{
         cursor: 'pointer',
+        position: 'relative',
       }}
       onClick={() => {
         if (imgRef.current) {
+          const markerArea = new markerjs2.MarkerArea(imgRef.current)
+          markerArea.addEventListener('render', (event) => {
+            if (imgRef.current) {
+              imgRef.current.src = event.dataUrl
+            }
+          })
+
+          markerArea.settings.displayMode = 'popup'
+          markerArea.renderAtNaturalSize = true
+          markerArea.renderImageType = 'image/png'
+          markerArea.renderImageQuality = 1.0
+
+          markerArea.show()
+          if (props.state) {
+            markerArea.restoreState(props.state)
+          }
         }
       }}
     />
