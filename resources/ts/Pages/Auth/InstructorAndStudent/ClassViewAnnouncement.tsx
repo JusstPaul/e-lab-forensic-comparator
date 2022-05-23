@@ -6,10 +6,20 @@ import moment from 'moment'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import Auth, { User } from '@/Layouts/Auth'
 import { Inertia } from '@inertiajs/inertia'
-import { Container, Box, Text, Paper, Group, Menu, Button } from '@mantine/core'
+import {
+  Container,
+  Tooltip,
+  Box,
+  Text,
+  Paper,
+  Group,
+  Menu,
+  Button,
+} from '@mantine/core'
 import { useModals } from '@mantine/modals'
 import Editor from '@/Components/Editor'
 import Error from '@/Components/Error'
+import { FileIcon } from 'react-file-icon'
 
 type Props = {
   id: string
@@ -119,6 +129,20 @@ const ClassViewAnnouncement: FC<Props> = ({ id, announcement }) => {
                     </Group>
                   </form>
                 )}
+
+                {announcement.files.length > 0 ? (
+                  <Group mt="md">
+                    {announcement.files.map((value, index) => (
+                      <UploadedFile
+                        name={value.split('/')[4]}
+                        url={getFileURL(client, _aws.bucket, value)}
+                        key={index}
+                      />
+                    ))}
+                  </Group>
+                ) : (
+                  <></>
+                )}
               </Box>
               {_user.role == 'instructor' ? (
                 <Menu withArrow>
@@ -135,6 +159,44 @@ const ClassViewAnnouncement: FC<Props> = ({ id, announcement }) => {
         </Box>
       </Container>
     </Auth>
+  )
+}
+
+type UploadedFileProps = {
+  url: string
+  name: string
+}
+const UploadedFile: FC<UploadedFileProps> = ({ url, name }) => {
+  const [file, setFile] = useState<File | undefined>()
+  useEffect(() => {
+    fetch(url)
+      .then((res) => res.blob())
+      .then((blob) => {
+        let fileGet = new File([blob], name)
+        setFile(fileGet)
+      })
+      .catch((e) => {
+        console.error(e)
+        alert('Error Fetching Uploaded File')
+      })
+  }, [])
+
+  return (
+    <Box
+      style={{
+        width: 48,
+        margin: 16,
+        position: 'relative',
+        cursor: 'pointer',
+      }}
+      onClick={() => {
+        saveAs(url, name)
+      }}
+    >
+      <Tooltip label={name} withArrow>
+        <FileIcon extension={name.split('.').pop()} />
+      </Tooltip>
+    </Box>
   )
 }
 

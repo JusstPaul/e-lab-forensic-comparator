@@ -21,7 +21,7 @@ return new class extends Migration
         });
 
         Schema::table('classes', function ($table) {
-            $table->bigInteger('instructor_id');
+            $table->bigInteger('instructor_id')->nullable();
             $table->foreign('instructor_id')
                 ->references('id')
                 ->on('users')

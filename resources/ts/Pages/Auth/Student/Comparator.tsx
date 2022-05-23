@@ -34,6 +34,7 @@ import {
 } from '@mantine/core'
 import Selection from '@/Components/Selection'
 import { toBlob } from 'html-to-image'
+import { detect } from 'detect-browser'
 
 type FilterProps = 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
 
@@ -233,11 +234,13 @@ const Comparator: FC<Props> = ({
                 key={index}
                 sx={(theme) => ({
                   cursor: 'pointer',
-                  borderWidth: '1rem',
+                  borderStyle: 'solid',
+                  borderWidth: '0.25rem',
                   borderColor:
                     leftIndex == index || rightIndex == index
                       ? theme.colors.cyan[7]
                       : theme.colors.gray[7],
+                  borderRadius: theme.radius.md,
                 })}
                 onClick={() => {
                   if (!isImagePreview) {
@@ -444,6 +447,7 @@ const Marker: FC<MarkerProps> = ({
             }
           }
         }}
+        crossOrigin="anonymous"
       />
 
       <Editor
@@ -488,6 +492,7 @@ const View: FC<ViewProps> = ({ croppedArea, url, aspect, filter }) => {
       }}
     >
       <img
+        crossOrigin="anonymous"
         src={url}
         style={{
           ...imageStyle,
@@ -497,7 +502,6 @@ const View: FC<ViewProps> = ({ croppedArea, url, aspect, filter }) => {
           transformOrigin: 'top left',
           ...filter,
         }}
-        crossOrigin="anonymous"
       />
     </div>
   )

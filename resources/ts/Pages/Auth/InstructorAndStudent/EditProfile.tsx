@@ -217,7 +217,9 @@ const EditProfile: FC<Props> = ({ first, profile }) => {
                 justifyContent: 'flex-end',
               }}
             >
-              <Button type="submit">Change</Button>
+              <Button type="submit" loading={processing}>
+                Change
+              </Button>
             </div>
           </form>
         </Paper>

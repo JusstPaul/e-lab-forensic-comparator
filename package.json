@@ -53,6 +53,7 @@
         "aws-sdk": "^2.1122.0",
         "babel-plugin-macros": "^3.1.0",
         "dayjs": "^1.11.2",
+        "detect-browser": "^5.3.0",
         "extend-shallow": "^3.0.2",
         "file-saver": "^2.0.5",
         "html-to-image": "^1.9.0",

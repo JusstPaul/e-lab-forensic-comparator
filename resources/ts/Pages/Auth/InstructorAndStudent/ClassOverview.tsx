@@ -13,6 +13,7 @@ import {
   Table,
   Group,
   Checkbox,
+  Tooltip,
 } from '@mantine/core'
 import { User } from '@/Layouts/Auth'
 import Auth from '@/Layouts/Auth'
@@ -23,7 +24,7 @@ import useStyle from '@/Lib/styles'
 import moment from 'moment'
 import Upload from '@/Components/Upload'
 import { useModals } from '@mantine/modals'
-import { FileIcon, defaultStyles } from 'react-file-icon'
+import { FileIcon } from 'react-file-icon'
 
 type Classes = {
   id: string
@@ -212,25 +213,45 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
                         mt="md"
                         style={{
                           display: 'flex',
-                          justifyContent: 'flex-end',
+                          justifyContent: 'space-between',
                           columnGap: '1rem',
-                          alignItems: 'center',
                         }}
                       >
-                        <Upload
-                          id="file-upload"
-                          label="Upload File"
-                          onChange={(event) => {
-                            setData({ ...data, files: event.target.files })
-                          }}
-                        />
-                        <Button
-                          type="submit"
-                          loading={processing}
-                          className="sr-only"
-                        >
-                          Post
-                        </Button>
+                        <Group position="left">
+                          {data.files &&
+                            Array.from(data.files).map((value, index) => (
+                              <Box
+                                key={index}
+                                style={{
+                                  width: 48,
+                                  margin: 16,
+                                  position: 'relative',
+                                }}
+                              >
+                                <Tooltip label={value.name} withArrow>
+                                  <FileIcon
+                                    extension={value.name.split('.').pop()}
+                                  />
+                                </Tooltip>
+                              </Box>
+                            ))}
+                        </Group>
+                        <Group position="right">
+                          <Upload
+                            id="file-upload"
+                            label="Upload File"
+                            onChange={(event) => {
+                              setData({ ...data, files: event.target.files })
+                            }}
+                          />
+                          <Button
+                            type="submit"
+                            loading={processing}
+                            className="sr-only"
+                          >
+                            Post
+                          </Button>
+                        </Group>
                       </Box>
                     </Box>
                   </form>
