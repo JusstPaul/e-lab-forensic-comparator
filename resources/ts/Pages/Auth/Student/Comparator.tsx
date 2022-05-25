@@ -10,7 +10,7 @@ import {
 import { Inertia } from '@inertiajs/inertia'
 import { Link, usePage } from '@inertiajs/inertia-react'
 import ImageViewer from 'react-simple-image-viewer'
-import Auth from '@/Layouts/Auth'
+import Auth, { User } from '@/Layouts/Auth'
 import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
 import Editor from '@/Components/Editor'
 import html2canvas from 'html2canvas'
@@ -20,6 +20,7 @@ import { XCircleIcon } from '@heroicons/react/solid'
 import Select from '@/Components/Select'
 import { Question } from '../Instructor/ClassCreateActivity'
 import {
+  ActionIcon,
   Box,
   Button,
   Card,
@@ -27,6 +28,7 @@ import {
   Group,
   Image,
   Paper,
+  ScrollArea,
   Skeleton,
   Stack,
   Switch,
@@ -34,7 +36,8 @@ import {
 } from '@mantine/core'
 import Selection from '@/Components/Selection'
 import { toBlob } from 'html-to-image'
-import { detect } from 'detect-browser'
+import Axios from 'axios'
+import useStyles from '@/Lib/styles'
 
 type FilterProps = 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
 
@@ -61,9 +64,9 @@ const Comparator: FC<Props> = ({
   state_annotation,
   question,
 }) => {
-  const { aws } = usePage().props
+  const { aws, user } = usePage().props
   const _aws = aws as S3PageProps
-  const client = s3Client(_aws)
+  const { classes } = useStyles()
 
   const [selectMode, setSelectMode] = useState<'left' | 'right'>('left')
   const [isImagePreview, setIsImagePreview] = useState(false)
@@ -73,12 +76,36 @@ const Comparator: FC<Props> = ({
   const [leftIndex, setLeftIndex] = useState(0)
   const [rightIndex, setRightIndex] = useState(1)
   useEffect(() => {
-    const questionImages = question.files as Array<string>
-    const imgs = questionImages.map((value) =>
-      getFileURL(client, _aws.bucket, value)
-    )
+    const _user = user as User
 
-    setImages(imgs)
+    Axios.defaults.headers.common = {
+      Authorization: `bearer ${_user.token}`,
+    }
+
+    const questionImages = question.files as Array<string>
+    let images: Array<string> = []
+
+    questionImages.map((value) =>
+      Axios.get(`/api/file?key=${value}`, {
+        headers: {
+          Authorization: `Bearer ${_user.token}`,
+        },
+        responseType: 'blob',
+      })
+        .then((response) => {
+          const reader = new window.FileReader()
+          reader.readAsDataURL(response.data)
+          reader.onload = () => {
+            let nImages = images
+            nImages.push(reader.result?.toString() ?? '#')
+            setImages([...nImages])
+          }
+        })
+        .catch((error) => {
+          alert('File fetch error!')
+          console.log(error)
+        })
+    )
   }, [])
 
   const [filter, setFilter] = useState<FilterProps>('none')
@@ -227,34 +254,40 @@ const Comparator: FC<Props> = ({
               }
             />
 
-            <Text>Images</Text>
-            {images.map((value, index) => (
-              <Image
-                src={value}
-                key={index}
-                sx={(theme) => ({
-                  cursor: 'pointer',
-                  borderStyle: 'solid',
-                  borderWidth: '0.25rem',
-                  borderColor:
-                    leftIndex == index || rightIndex == index
-                      ? theme.colors.cyan[7]
-                      : theme.colors.gray[7],
-                  borderRadius: theme.radius.md,
-                })}
-                onClick={() => {
-                  if (!isImagePreview) {
-                    switch (selectMode) {
-                      case 'left':
-                        setLeftIndex(index)
-                        break
-                      case 'right':
-                        setRightIndex(index)
-                    }
-                  }
-                }}
-              />
-            ))}
+            <Box>
+              <Text>Images</Text>
+              <ScrollArea offsetScrollbars>
+                <Stack>
+                  {images.map((value, index) => (
+                    <Image
+                      src={value}
+                      key={index}
+                      sx={(theme) => ({
+                        cursor: 'pointer',
+                        borderStyle: 'solid',
+                        borderWidth: '0.25rem',
+                        borderColor:
+                          leftIndex == index || rightIndex == index
+                            ? theme.colors.cyan[7]
+                            : theme.colors.gray[7],
+                        borderRadius: theme.radius.md,
+                      })}
+                      onClick={() => {
+                        if (!isImagePreview) {
+                          switch (selectMode) {
+                            case 'left':
+                              setLeftIndex(index)
+                              break
+                            case 'right':
+                              setRightIndex(index)
+                          }
+                        }
+                      }}
+                    />
+                  ))}
+                </Stack>
+              </ScrollArea>
+            </Box>
           </Stack>
           <Container size="xl">
             <Paper
@@ -365,6 +398,22 @@ const Comparator: FC<Props> = ({
                   })}
                 >
                   <Text transform="capitalize">Annotation #{index + 1}</Text>
+                  <ActionIcon
+                    sx={(theme) => ({
+                      color: theme.colors.gray[0],
+                      ':hover': {
+                        backgroundColor: theme.colors.cyan[7],
+                        color: theme.colors.gray[1],
+                      },
+                    })}
+                    onClick={() => {
+                      const nAnnotations = annotations
+                      nAnnotations.splice(index, 1)
+                      setAnnotations([...nAnnotations])
+                    }}
+                  >
+                    <XCircleIcon className={classes.icon} />
+                  </ActionIcon>
                 </Card.Section>
                 <Box py="sm">
                   <Marker
@@ -447,7 +496,6 @@ const Marker: FC<MarkerProps> = ({
             }
           }
         }}
-        crossOrigin="anonymous"
       />
 
       <Editor

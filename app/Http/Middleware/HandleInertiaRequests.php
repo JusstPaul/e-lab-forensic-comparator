@@ -45,13 +45,20 @@ class HandleInertiaRequests extends Middleware
                 $role = 'guest';
                 $name = '';
                 $sidebar = [];
+                $token = '';
 
                 if ($user != null) {
                     $role = $user->roles->first()->name;
+                    $id = $user->id;
+                    $token = $user->createToken("api-requests-$id")->plainTextToken;
 
                     $profile = $user->profile;
                     if ($profile != null) {
-                        $name = $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.';
+                        if ($profile->last_name == null || $profile->last_name == '') {
+                            $name = $profile->last_name . ', ' . $profile->first_name;
+                        } else {
+                            $name = $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.';
+                        }
                     }
                 }
 
@@ -116,6 +123,7 @@ class HandleInertiaRequests extends Middleware
                     'role' => $role,
                     'name' => $name,
                     'sidebar' => $sidebar,
+                    'token' => $token,
                 ];
             },
             'aws' => [

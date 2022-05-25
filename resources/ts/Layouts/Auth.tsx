@@ -46,6 +46,7 @@ export type User = {
   role: 'admin' | 'instructor' | 'student' | 'guest'
   name?: string
   sidebar?: Array<SideBarSection>
+  token: string
 }
 
 type Props = PropsWithChildren<{

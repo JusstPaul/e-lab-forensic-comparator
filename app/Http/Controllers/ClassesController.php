@@ -128,10 +128,17 @@ class ClassesController extends Controller
                     ->join('profiles', 'profiles.user_id', 'users.id')
                     ->get()
                     ->map(function ($value) {
+                        $name = '';
+                        if ($value->middle_name == null || $value->middle_name == '') {
+                            $name = $value->last_name . ', ' . $value->first_name;
+                        } else {
+                            $name = $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.';
+                        }
+
                         return [
                             'id' => Hashids::encode($value->user_id),
                             'student_id' => $value->username,
-                            'name' => $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.',
+                            'name' => $name,
                             'contact' => $value->contact,
                         ];
                     });
@@ -162,9 +169,21 @@ class ClassesController extends Controller
                 'id' => $class_id,
                 'code' => $value->code,
                 'instructor_name' => function () use ($profile, $role, $classes) {
+                    $name = '';
                     if ($role == 'student') {
                         $instructor = $classes->user->profile;
-                        return $instructor->last_name . ', ' . $instructor->first_name . ' ' . $instructor->middle_name[0] . '.';
+                        if ($instructor->middle_name == null || $instructor->middle_name == '') {
+                            $name = $instructor->last_name . ', ' . $instructor->first_name;
+                        } else {
+                            $name = $instructor->last_name . ', ' . $instructor->first_name . ' ' . $instructor->middle_name[0] . '.';
+                        }
+
+                        return $name;
+                    }
+                    if ($profile->middle_name == null || $profile->middle_name == '') {
+                        $name = $profile->last_name . ', ' . $profile->first_name;
+                    } else {
+                        $name = $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.';
                     }
                     return $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.';
                 },
@@ -257,10 +276,17 @@ class ClassesController extends Controller
                 ->join('profiles', 'profiles.user_id', '=', 'users.id')
                 ->get()
                 ->map(function ($value) {
+                    $name = null;
+                    if ($value->middle_name == null || $value->middle_name == '') {
+                        $name = $value->last_name . ', ' . $value->first_name . ' ';
+                    } else {
+                        $name = $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.';
+                    }
+
                     return [
                         'id' => Hashids::encode($value->user_id),
                         'student_id' => $value->username,
-                        'name' => $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.',
+                        'name' => $name,
                         'contact' => $value->contact,
                     ];
                 }),
@@ -377,11 +403,18 @@ class ClassesController extends Controller
                     return $activity['type'] == 'assignment';
                 });
 
+                $name = null;
+                if ($student->middle_name == null || $student->middle_name == '') {
+                    $name = $student->last_name . ', ' . $student->first_name . ' ';
+                } else {
+                    $name = $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.';
+                }
+
                 return [
                     'student' => [
                         'id' => $student_id,
                         'username' => $student->username,
-                        'name' => $student->last_name . ', ' . $student->first_name . ' ' . $student->middle_name[0] . '.',
+                        'name' => $name,
                     ],
                     'exams' => $exams,
                     'assignments' => $assignments,

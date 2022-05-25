@@ -6,9 +6,9 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Session;
 use Vinkla\Hashids\Facades\Hashids;
 
 class UserController extends Controller
@@ -120,6 +120,7 @@ class UserController extends Controller
      */
     public function logout()
     {
+        auth()->user()->tokens()->delete();
         Session::flush();
         Auth::logout();
 
