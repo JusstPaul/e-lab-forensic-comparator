@@ -257,7 +257,6 @@ class ClassesController extends Controller
                     })->toArray();
 
                 usort($students, function ($student1, $student2) {
-                    dd($student1);
                     return strcmp($student1['name'], $student2['name']);
                 });
 
