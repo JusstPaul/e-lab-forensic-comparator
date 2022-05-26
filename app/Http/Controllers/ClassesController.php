@@ -38,7 +38,12 @@ class ClassesController extends Controller
 
     public function destroy($class_id)
     {
-        Classes::destroy(Hashids::decode($class_id)[0]);
+        $id = Hashids::decode($class_id)[0];
+
+        User::where('joined_classes', $id)->update([
+            'joined_classes' => null,
+        ]);
+        Classes::destroy($id);
         return redirect()->route('instructor.dashboard');
     }
 
