@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivitiesAnswer;
 use App\Models\Classes;
 use App\Models\ClassesActivities;
 use Cache;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Vinkla\Hashids\Facades\Hashids;
@@ -48,8 +50,20 @@ class ClassesActivitiesController extends Controller
         $activity = new ClassesActivities;
         $activity->title = $request->title;
         $activity->type = $request->type;
-        $activity->date_end = $request->type != 'exam' ? $request->date_end : date('Y-m-d');
-        $activity->time_end = $request->time_end;
+
+        if ($request->type == 'exam') {
+            $time = Carbon::now()->addHours(8);
+            $timeInput = Carbon::parse($request->time_end)->addHours(8);
+
+            $activity->date_end = $time->toDateTimeString();
+            $activity->time_end = $timeInput->toDateTimeString();
+        } else {
+            $time = Carbon::parse($request->date_end)->addHours(8);
+            $timeInput = Carbon::parse($request->time_end)->addHours(8);
+
+            $activity->date_end = $time->toDateTimeString();
+            $activity->time_end = $timeInput->toDateTimeString();
+        }
         $activity->questions = $questions;
 
         $classes->activities()->save($activity);
@@ -63,6 +77,14 @@ class ClassesActivitiesController extends Controller
     {
         return Inertia::render('Auth/Instructor/ClassCreateActivity', [
             'id' => $class_id,
+        ]);
+    }
+
+    public function destroy($class_id, $activity_id)
+    {
+        ClassesActivities::destroy(Hashids::decode($activity_id)[0]);
+        return redirect()->route('class.overview', [
+            'class_id' => $class_id,
         ]);
     }
 
@@ -168,8 +190,12 @@ class ClassesActivitiesController extends Controller
                             $name = "$value->last_name, $value->first_name $middle.";
                         }
 
+                        // HACK: Why?
+                        $ans = ActivitiesAnswer::where('student_id', $value->student_id)
+                            ->where('activity_id', $value->activity_id)->first();
+
                         return [
-                            'id' => Hashids::encode($value->activity_id),
+                            'id' => Hashids::encode($ans->id),
                             'student_id' => Hashids::encode($value->student_id),
                             'username' => $value->username,
                             'name' => $name,

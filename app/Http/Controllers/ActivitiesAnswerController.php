@@ -94,6 +94,7 @@ class ActivitiesAnswerController extends Controller
             'id' => $class_id,
             'activity_id' => $activity_id,
             'student_id' => $student_id,
+            'answerChecked' => $answer->is_checked,
             'questions' => function () use ($answer) {
 
                 $questions = $answer->classes;

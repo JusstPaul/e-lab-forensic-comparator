@@ -144,7 +144,9 @@ const ClassAddStudent: FC<Props> = ({ id, students }) => {
                             />
                           </td>
                           <td>{value.student_id}</td>
-                          <td>{value.name}</td>
+                          <td style={{ textTransform: 'uppercase' }}>
+                            {value.name}
+                          </td>
                           <td>{value.contact}</td>
                         </>
                       ) : (

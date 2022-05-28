@@ -72,6 +72,7 @@ type Props = {
     answers: AnswerState
     checks?: CheckState
   }
+  answerChecked: boolean
 }
 
 const ClassShowAnswers: FC<Props> = ({
@@ -80,6 +81,7 @@ const ClassShowAnswers: FC<Props> = ({
   student_id,
   questions,
   answers,
+  answerChecked,
 }) => {
   const { user, aws } = usePage().props
   const _user = user as User

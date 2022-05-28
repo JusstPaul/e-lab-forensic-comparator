@@ -64,6 +64,7 @@ type ProgressProps = {
 type Props = {
   classes: Classes
   cards?: Array<{
+    id: string
     type: string
     display: string
     link: string
@@ -103,6 +104,24 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
   }
 
   const modals = useModals()
+  const openConfirmModal = (type: string, id: string) =>
+    modals.openConfirmModal({
+      title: `Delete ${type}?`,
+      children: <Text size="sm">Are you sure you want to delete {type}?</Text>,
+      labels: { confirm: 'Confirm', cancel: 'Cancel' },
+      onConfirm: () => {
+        if (type == 'exam') {
+        } else {
+          Inertia.post(
+            `/class/${classes.id}/announcement/delete/${id}`,
+            undefined,
+            {
+              only: ['cards'],
+            }
+          )
+        }
+      },
+    })
 
   return (
     <Auth class_id={classes.id}>
@@ -283,8 +302,23 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
 
                         {_user.role == 'instructor' ? (
                           <Menu>
-                            <Menu.Item>Edit</Menu.Item>
-                            <Menu.Item>Delete</Menu.Item>
+                            {value.type == 'announcement' ? (
+                              <Menu.Item
+                                component={Link}
+                                href={`/class/${classes.id}/announcement/view/${value.id}?edit=true`}
+                              >
+                                Edit
+                              </Menu.Item>
+                            ) : (
+                              <></>
+                            )}
+                            <Menu.Item
+                              onClick={() =>
+                                openConfirmModal(value.type, value.id)
+                              }
+                            >
+                              Delete
+                            </Menu.Item>
                           </Menu>
                         ) : (
                           <></>
@@ -368,7 +402,9 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
                               <></>
                             )}
                             <td>{value.username}</td>
-                            <td>{value.name}</td>
+                            <td style={{ textTransform: 'uppercase' }}>
+                              {value.name}
+                            </td>
                             {_user.role == 'instructor' ? (
                               <td>{value.contact}</td>
                             ) : (

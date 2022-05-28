@@ -7,6 +7,7 @@ use App\Models\ActivitiesChecks;
 use App\Models\Classes;
 use App\Models\ClassesActivities;
 use App\Models\User;
+use Carbon\Carbon;
 use DateTime;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -28,8 +29,14 @@ class ClassesController extends Controller
         $classes->code = $request->section;
         $classes->room = $request->room;
         $classes->day = $request->day;
-        $classes->time_start = $request->time_start;
-        $classes->time_end = $request->time_end;
+
+        $timeStart = Carbon::parse($request->time_start);
+        $timeStart->addHours(8);
+        $classes->time_start = $timeStart->toDateTimeString();
+
+        $timeEnd = Carbon::parse($request->time_end);
+        $timeEnd->addHours(8);
+        $classes->time_end = $timeEnd->toDateTimeString();
 
         auth()->user()->classes()->save($classes);
 
@@ -38,12 +45,7 @@ class ClassesController extends Controller
 
     public function destroy($class_id)
     {
-        $id = Hashids::decode($class_id)[0];
-
-        User::where('joined_classes', $id)->update([
-            'joined_classes' => null,
-        ]);
-        Classes::destroy($id);
+        Classes::destroy(Hashids::decode($class_id)[0]);
         return redirect()->route('instructor.dashboard');
     }
 
@@ -196,13 +198,15 @@ class ClassesController extends Controller
                 'time_end' => $value->time_end,
                 'time_start' => $value->time_start,
             ])->first(),
-            'cards' => function () use ($classes, $class_id, $role) {
+            'cards' => function () use ($classes, $class_id, $role, $user) {
                 $cards = [];
+                $userID = Hashids::encode($user->id);
 
                 $announcements = $classes->announcements()->get();
                 foreach ($announcements as $announcement) {
                     $id = Hashids::encode($announcement['id']);
                     array_push($cards, [
+                        'id' => $id,
                         'type' => 'announcement',
                         'display' => $announcement['text'],
                         'link' => "/class/$class_id/announcement/view/$id",
@@ -211,19 +215,38 @@ class ClassesController extends Controller
                 }
 
                 $activities = ClassesActivities::where('classes_id', $classes->id)->get();
+
                 foreach ($activities as $activity) {
                     $id = Hashids::encode($activity['id']);
 
                     if ($role == 'student') {
                         $class_id = Hashids::encode($classes->id);
-                        array_push($cards, [
-                            'type' => 'task',
-                            'display' => $activity['title'],
-                            'link' => "/class/$class_id/activity/$id",
-                            'created_at' => $activity['created_at'],
-                        ]);
+                        $answer = ActivitiesAnswer::where('student_id', $user->id)
+                            ->where('activity_id', $activity->id)
+                            ->first();
+
+                        if ($answer == null) {
+                            array_push($cards, [
+                                'id' => $id,
+                                'type' => 'task',
+                                'display' => $activity['title'],
+                                'link' => "/class/$class_id/activity/$id",
+                                'created_at' => $activity['created_at'],
+                            ]);
+                        } else {
+                            $answerID = Hashids::encode($answer->id);
+                            array_push($cards, [
+                                'id' => $id,
+                                'type' => 'task',
+                                'display' => $activity['title'],
+                                'link' => "/class/$class_id/activity/$answerID/show/$userID",
+                                'created_at' => $activity['created_at'],
+                            ]);
+                        }
+
                     } else {
                         array_push($cards, [
+                            'id' => $id,
                             'type' => 'task',
                             'display' => $activity['title'],
                             'link' => "/class/$class_id/activity/report/$id",
@@ -384,7 +407,7 @@ class ClassesController extends Controller
                         $total = 0;
                         foreach ($answer->answers['data'] as $data) {
                             if ($data != null) {
-                                $total += $data['points'];
+                                $total += (int) $data['points'];
                             }
                         }
 
@@ -400,12 +423,12 @@ class ClassesController extends Controller
                     }
                 }
 
-                $exams = array_filter($activities_status, function ($activity) {
+                $exams = array_values(array_filter($activities_status, function ($activity) {
                     return $activity['type'] == 'exam';
-                });
-                $assignments = array_filter($activities_status, function ($activity) {
+                }));
+                $assignments = array_values(array_filter($activities_status, function ($activity) {
                     return $activity['type'] == 'assignment';
-                });
+                }));
 
                 $name = null;
                 if ($student->middle_name == null || $student->middle_name == '') {

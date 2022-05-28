@@ -64,6 +64,7 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     Route::post('/class/{class_id}/students/add', [ClassesController::class, 'store_add_students']);
     Route::post('/class/{class_id}/students/remove', [ClassesController::class, 'remove_students']);
     Route::post('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'store']);
+    Route::post('/class/{class_id}/activity/delete/{activity_id}', [ClassesActivitiesController::class, 'destroy']);
     Route::post('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesChecksController::class, 'store']);
     Route::post('/class/{class_id}/announcement/create', [AnnouncementsController::class, 'store']);
     Route::post('/class/{class_id}/announcement/delete/{announcement_id}', [AnnouncementsController::class, 'destroy']);

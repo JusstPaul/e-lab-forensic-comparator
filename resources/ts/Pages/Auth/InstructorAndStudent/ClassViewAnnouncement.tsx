@@ -41,6 +41,10 @@ const ClassViewAnnouncement: FC<Props> = ({ id, announcement }) => {
   const [dateStr, setDateStr] = useState('')
   useEffect(() => {
     setDateStr(moment(announcement.created_at).fromNow())
+
+    const params = new URLSearchParams(window.location.search)
+    const value = params.get('edit') === 'true'
+    setIsEdit(value)
   }, [])
 
   const { data, setData, post, processing, errors } = useForm({
