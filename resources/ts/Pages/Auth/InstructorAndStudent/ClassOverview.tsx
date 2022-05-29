@@ -110,7 +110,14 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
       children: <Text size="sm">Are you sure you want to delete {type}?</Text>,
       labels: { confirm: 'Confirm', cancel: 'Cancel' },
       onConfirm: () => {
-        if (type == 'exam') {
+        if (type == 'task') {
+          Inertia.post(
+            `/class/${classes.id}/activity/delete/${id}`,
+            undefined,
+            {
+              only: ['cards'],
+            }
+          )
         } else {
           Inertia.post(
             `/class/${classes.id}/announcement/delete/${id}`,
@@ -316,6 +323,8 @@ const ClassOverview: FC<Props> = ({ classes, cards, students }) => {
                               onClick={() =>
                                 openConfirmModal(value.type, value.id)
                               }
+                              component="button"
+                              type="button"
                             >
                               Delete
                             </Menu.Item>
