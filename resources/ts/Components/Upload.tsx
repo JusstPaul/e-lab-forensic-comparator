@@ -5,11 +5,12 @@ import useStyle from '@/Lib/styles'
 
 type Props = {
   id: string
-  label: string
+  label?: string
+  name?: string
   onChange?: ChangeEventHandler<HTMLInputElement>
 }
 
-const Upload: FC<Props> = ({ id, label, onChange }) => {
+const Upload: FC<Props> = ({ id, label, name, onChange }) => {
   const _classes = useStyle()
   return (
     <InputWrapper
@@ -23,6 +24,7 @@ const Upload: FC<Props> = ({ id, label, onChange }) => {
       <input
         type="file"
         id={id}
+        name={name}
         className={_classes.classes.fileInput}
         multiple
         onChange={(event) => {

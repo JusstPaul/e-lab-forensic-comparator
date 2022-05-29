@@ -41,6 +41,7 @@ import { useMediaQuery, useViewportSize } from '@mantine/hooks'
 import Upload from '@/Components/Upload'
 import dayjs from 'dayjs'
 import ImageViewer from 'react-simple-image-viewer'
+import { cloneDeep } from 'lodash'
 
 export type Activity = 'assignment' | 'exam'
 
@@ -48,6 +49,7 @@ type QuestionType = 'question' | 'comparator' | 'essay' | 'directions'
 type Choices = 'radio' | 'checkbox'
 
 export type Question = {
+  id: number
   type: QuestionType
   instruction: string
   choices?: { type: Choices; active: boolean; data: Array<string> }
@@ -64,15 +66,7 @@ type Props = {
 type RenderItemsProps = {
   value: Question
   index: number
-  offset: number
-  setOffset: React.Dispatch<React.SetStateAction<number>>
-  data: {
-    title: string
-    type: Activity
-    date_end: Date
-    time_end: Date
-    questions: Questions
-  }
+  data: Function
   setData: Function
   onImageOpen: Function
 }
@@ -80,8 +74,6 @@ type RenderItemsProps = {
 const RenderItems: FC<RenderItemsProps> = ({
   value,
   index,
-  offset,
-  setOffset,
   data,
   setData,
   onImageOpen,
@@ -90,10 +82,10 @@ const RenderItems: FC<RenderItemsProps> = ({
 
   const [currentValue, setCurrentValue] = useState(value)
   useEffect(() => {
-    let nQuestions = data.questions
-    nQuestions[index] = currentValue
+    let nQuestions = [...data().questions]
+    nQuestions[index] = cloneDeep(currentValue)
 
-    setData({ ...data, questions: nQuestions })
+    setData({ ...data(), questions: cloneDeep(nQuestions) })
   }, [currentValue])
 
   const handleInstructionChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -339,7 +331,8 @@ const RenderItems: FC<RenderItemsProps> = ({
               }}
             />
             <Upload
-              id="comparator"
+              id={`comparator-${currentValue.id}`}
+              name={`comparator-${currentValue.id}`}
               label="Upload Image"
               onChange={(event) => {
                 setCurrentValue({
@@ -407,6 +400,13 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
   const classes = useStyles()
 
   const atLeastMd = useMediaQuery('(min-width: 992px)')
+  const indexRef = useRef(0)
+  const generateID = () => {
+    const val = indexRef.current
+    indexRef.current++
+    console.log(val)
+    return val
+  }
 
   const containerRef = useRef<HTMLDivElement>(null)
   const { height, width } = useViewportSize()
@@ -434,8 +434,6 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
     setIsImageViewerOpen(false)
   }
 
-  const [numberingOffset, setNumberingOffset] = useState(0)
-
   const { data, setData, post, processing, errors } = useForm<{
     title: string
     type: Activity
@@ -458,6 +456,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
     switch (type) {
       case 'question':
         nQuestions.push({
+          id: generateID(),
           type: type,
           instruction: '',
           points: 1,
@@ -471,6 +470,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
         break
       case 'essay':
         nQuestions.push({
+          id: generateID(),
           type: type,
           instruction: '',
           points: 1,
@@ -479,6 +479,7 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
         break
       case 'comparator':
         nQuestions.push({
+          id: generateID(),
           type: type,
           instruction: '',
           points: 1,
@@ -487,8 +488,8 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
         break
       case 'directions':
         nQuestions.push({
+          id: generateID(),
           type: type,
-
           instruction: '',
           points: 0,
           files: null,
@@ -622,9 +623,9 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
             </Alert>
           )}
 
-          {data.questions.map((value, index) => (
+          {data.questions.map((_, index) => (
             <Card
-              key={index}
+              key={data.questions[index].id}
               p="sm"
               withBorder
               sx={() => ({
@@ -641,12 +642,12 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                 })}
               >
                 <Text transform="capitalize">
-                  {value.type != 'directions' ? (
-                    <>{index + 1 - numberingOffset}. </>
+                  {data.questions[index].type != 'directions' ? (
+                    <>{index + 1}. </>
                   ) : (
                     ''
                   )}
-                  {value.type}
+                  {data.questions[index].type}
                 </Text>
                 <ActionIcon
                   sx={(theme) => ({
@@ -656,8 +657,9 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                       color: theme.colors.gray[1],
                     },
                   })}
+                  type="button"
                   onClick={() => {
-                    const nQuestions = data.questions
+                    let nQuestions = data.questions
                     nQuestions.splice(index, 1)
                     setData({ ...data, questions: nQuestions })
                   }}
@@ -667,11 +669,9 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
               </Card.Section>
               <Box py="sm">
                 <RenderItems
-                  value={value}
+                  value={data.questions[index]}
                   index={index}
-                  offset={numberingOffset}
-                  setOffset={setNumberingOffset}
-                  data={data}
+                  data={() => data}
                   setData={setData}
                   onImageOpen={(images: Array<string>, index: number) => {
                     setCurrentImages(images)
