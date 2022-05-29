@@ -54,7 +54,7 @@ class HandleInertiaRequests extends Middleware
 
                     $profile = $user->profile;
                     if ($profile != null) {
-                        if ($profile->last_name == null || $profile->last_name == '') {
+                        if ($profile->middle_name == null || $profile->middle_name == '') {
                             $name = $profile->last_name . ', ' . $profile->first_name;
                         } else {
                             $name = $profile->last_name . ', ' . $profile->first_name . ' ' . $profile->middle_name[0] . '.';
