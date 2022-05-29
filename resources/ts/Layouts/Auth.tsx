@@ -443,6 +443,26 @@ const Auth = ({
                   )}
                 </>
               )}
+              <Navbar.Section>
+                {_user.sidebar?.map((value, index) => (
+                  <Accordion key={index} iconSize={14} offsetIcon={false}>
+                    <Accordion.Item label={value.title}>
+                      <Stack>
+                        {value.elements.map((val, idx) => (
+                          <Link
+                            href={val.link}
+                            className={classes.classes.link}
+                            key={idx}
+                            replace
+                          >
+                            {val.display}
+                          </Link>
+                        ))}
+                      </Stack>
+                    </Accordion.Item>
+                  </Accordion>
+                ))}
+              </Navbar.Section>
             </Navbar>
           ) : (
             <></>
