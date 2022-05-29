@@ -40,6 +40,7 @@ import {
 } from '@mantine/core'
 import useStyles from '@/Lib/styles'
 import { InformationCircleIcon } from '@heroicons/react/outline'
+import Axios from 'axios'
 
 type Check = {
   isChecked: boolean
@@ -439,50 +440,115 @@ const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
 }
 
 const Marker: FC<Annotation> = (props) => {
-  const { aws } = usePage().props
+  const { aws, user } = usePage().props
 
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
   const imgRef = useRef<HTMLImageElement>(null)
+  const overRef = useRef<HTMLImageElement>(null)
+
+  const _user = user as User
 
   const [url, setUrl] = useState('')
+  const [srcImg, setSrcImg] = useState<HTMLImageElement | null>(null)
+  const [parent, setParent] = useState<HTMLElement | null | undefined>()
+
+  console.log(props.state)
+
   useEffect(() => {
-    setUrl(getFileURL(client, _aws.bucket, props.image as string))
+    if (overRef.current) {
+      overRef.current.onload = () => {
+        setSrcImg(overRef.current)
+        setParent(overRef.current?.parentElement)
+      }
+    }
+
+    Axios.defaults.headers.common = {
+      Authorizaton: `bearer ${_user.token}`,
+    }
+
+    Axios.get(`/api/file?key=${props.image as string}`, {
+      headers: {
+        Authorization: `Bearer ${_user.token}`,
+      },
+      responseType: 'blob',
+    })
+      .then((res) => {
+        const reader = new window.FileReader()
+        reader.readAsDataURL(res.data)
+        reader.onload = () => {
+          const result = reader.result?.toString()
+          if (result) {
+            setUrl(result)
+          } else {
+            alert('Error fetching image!')
+          }
+        }
+      })
+      .catch((error) => {
+        alert('File fetching error!')
+        console.error(error)
+      })
+
+    /*     setUrl(getFileURL(client, _aws.bucket, props.image as string))
 
     if (imgRef.current) {
       imgRef.current.crossOrigin = 'anonymous'
-    }
+    } */
   }, [])
 
   return (
-    <img
-      src={url}
-      ref={imgRef}
-      style={{
-        cursor: 'pointer',
-        position: 'relative',
-      }}
-      onClick={() => {
-        if (imgRef.current) {
-          const markerArea = new markerjs2.MarkerArea(imgRef.current)
-          markerArea.addEventListener('render', (event) => {
+    <Stack>
+      <div
+        style={{
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          paddingTop: 50,
+        }}
+      >
+        <img
+          src={url}
+          ref={overRef}
+          style={{
+            cursor: 'pointer',
+          }}
+        />
+        <img
+          src={url}
+          ref={imgRef}
+          style={{
+            cursor: 'pointer',
+            position: 'absolute',
+          }}
+          onClick={() => {
             if (imgRef.current) {
-              imgRef.current.src = event.dataUrl
+              const markerArea = new markerjs2.MarkerArea(imgRef.current)
+
+              if (parent) {
+                markerArea.targetRoot = parent
+              }
+
+              markerArea.addEventListener('render', (event) => {
+                if (imgRef.current) {
+                  imgRef.current.src = event.dataUrl
+                }
+              })
+
+              markerArea.renderAtNaturalSize = true
+              markerArea.renderImageType = 'image/png'
+              markerArea.renderImageQuality = 1.0
+              markerArea.show()
+
+              if (props.state) {
+                markerArea.restoreState(props.state)
+              }
             }
-          })
-
-          markerArea.settings.displayMode = 'popup'
-          markerArea.renderAtNaturalSize = true
-          markerArea.renderImageType = 'image/png'
-          markerArea.renderImageQuality = 1.0
-
-          markerArea.show()
-          if (props.state) {
-            markerArea.restoreState(props.state)
-          }
-        }
-      }}
-    />
+          }}
+        />
+      </div>
+    </Stack>
   )
 }
 

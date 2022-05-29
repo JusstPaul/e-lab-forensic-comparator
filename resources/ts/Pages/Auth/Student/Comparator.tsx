@@ -444,19 +444,47 @@ const Marker: FC<MarkerProps> = ({
   annotations,
   setAnnotations,
 }) => {
-  const { aws } = usePage().props
+  const { aws, user } = usePage().props
   const _aws = aws as S3PageProps
   const client = s3Client(_aws)
+  const _user = user as User
 
   const [url, setUrl] = useState('')
   const imgRef = useRef<HTMLImageElement>(null)
+  const overRef = useRef<HTMLImageElement>(null)
+  const [parent, setParent] = useState<HTMLElement | null | undefined>()
 
   const [annotate, setAnnotate] = useState(value)
 
   useEffect(() => {
     if (value.isKey) {
-      const getUrl = getFileURL(client, _aws.bucket, value.image as string)
-      setUrl(getUrl)
+      Axios.defaults.headers.common = {
+        Authorizaton: `bearer ${_user.token}`,
+      }
+
+      Axios.get(`/api/file?key=${value.image as string}`, {
+        headers: {
+          Authorization: `Bearer ${_user.token}`,
+        },
+        responseType: 'blob',
+      })
+        .then((res) => {
+          const reader = new window.FileReader()
+          reader.readAsDataURL(res.data)
+          reader.onload = () => {
+            const result = reader.result?.toString()
+            if (result) {
+              setUrl(result)
+              setParent(overRef.current?.parentElement)
+            } else {
+              alert('Error fetching image!')
+            }
+          }
+        })
+        .catch((error) => {
+          alert('File fetching error!')
+          console.error(error)
+        })
     } else {
       setUrl(URL.createObjectURL(value.image as File))
     }
@@ -470,33 +498,62 @@ const Marker: FC<MarkerProps> = ({
 
   return (
     <Stack>
-      <img
-        src={url}
-        ref={imgRef}
+      <div
         style={{
-          cursor: 'pointer',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          paddingTop: 50,
         }}
-        onClick={() => {
-          if (imgRef.current) {
-            const markerArea = new markerjs2.MarkerArea(imgRef.current)
-            markerArea.addEventListener('render', (event) => {
-              if (imgRef.current) {
-                imgRef.current.src = event.dataUrl
-                setAnnotate({ ...annotate, state: event.state })
-              }
-            })
-            markerArea.settings.displayMode = 'popup'
-            markerArea.renderAtNaturalSize = true
-            markerArea.renderImageType = 'image/png'
-            markerArea.renderImageQuality = 1.0
-            markerArea.show()
+      >
+        <img
+          src={url}
+          ref={overRef}
+          style={{
+            cursor: 'pointer',
+          }}
+        />
 
-            if (annotate.state) {
-              markerArea.restoreState(annotate.state)
+        <img
+          src={url}
+          ref={imgRef}
+          style={{
+            cursor: 'pointer',
+            position: 'absolute',
+          }}
+          onClick={() => {
+            if (imgRef.current) {
+              const markerArea = new markerjs2.MarkerArea(imgRef.current)
+
+              if (parent) {
+                markerArea.targetRoot = parent
+              }
+
+              markerArea.availableMarkerTypes = [
+                markerjs2.TextMarker,
+                markerjs2.FreehandMarker,
+              ]
+
+              markerArea.addEventListener('render', (event) => {
+                if (imgRef.current) {
+                  imgRef.current.src = event.dataUrl
+                  setAnnotate({ ...annotate, state: event.state })
+                }
+              })
+              markerArea.settings.displayMode = 'popup'
+              markerArea.renderAtNaturalSize = true
+              markerArea.renderImageType = 'image/png'
+              markerArea.renderImageQuality = 1.0
+              markerArea.show()
+
+              if (annotate.state) {
+                markerArea.restoreState(annotate.state)
+              }
             }
-          }
-        }}
-      />
+          }}
+        />
+      </div>
 
       <Editor
         setContents={annotate.essay}
@@ -540,7 +597,6 @@ const View: FC<ViewProps> = ({ croppedArea, url, aspect, filter }) => {
       }}
     >
       <img
-        crossOrigin="anonymous"
         src={url}
         style={{
           ...imageStyle,
