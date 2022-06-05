@@ -35,7 +35,7 @@ type Classes = {
   time_start: string
 }
 
-type Student = {
+export type Student = {
   id: string
   username: string
   name: string

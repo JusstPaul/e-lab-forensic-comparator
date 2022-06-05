@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivitiesAnswer;
+use App\Models\ClassesActivities;
 use Cache;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
@@ -14,6 +15,10 @@ class ActivitiesAnswerController extends Controller
 {
     public function store(Request $request, $class_id, $activity_id)
     {
+        $user_id = auth()->user()->id;
+        $decoded_activity_id = Hashids::decode($activity_id)[0];
+        $activity = ClassesActivities::find($decoded_activity_id);
+
         $request->validate(([
             'answers' => 'required',
             'answers.id' => 'required',
@@ -35,15 +40,48 @@ class ActivitiesAnswerController extends Controller
             'answers.data.*.answer.essay' => 'max:3000',
         ]));
 
-        $user_id = auth()->user()->id;
-
-        ActivitiesAnswer::create([
-            'activity_id' => Hashids::decode($activity_id)[0],
+        $answer = ActivitiesAnswer::create([
+            'activity_id' => $decoded_activity_id,
             'student_id' => $user_id,
             'answers' => $request->answers,
         ]);
 
         Cache::forget('user:' . $user_id . '-class:' . $class_id . '-activity:' . $activity_id);
+
+        $answers = $request->answers['data'];
+        $checks = [];
+        $points = 0;
+        foreach ($activity->questions as $key => $question) {
+            if ($question['type'] == 'question') {
+                if (isset($question['answer']) && $question['answer'] !== '') {
+                    if ($question['answer'] == $answers[$key]['answer']) {
+                        $points += $answers[$key]['points'];
+                        array_push($checks, [
+                            'isChecked' => true,
+                            'points' => $answers[$key]['points'],
+                            'hasComment' => false,
+                            'comment' => '',
+                        ]);
+                        continue;
+                    }
+                }
+            }
+
+            array_push($checks, [
+                'isChecked' => false,
+                'points' => $answers[$key]['points'],
+                'hasComment' => false,
+                'comment' => '',
+            ]);
+        }
+
+        if ($points > 0) {
+            $answer->checks()->create([
+                'score' => $points,
+                'checks' => $checks,
+                'is_checked' => false,
+            ]);
+        }
 
         return redirect()->route('class.overview', [
             'class_id' => $class_id,

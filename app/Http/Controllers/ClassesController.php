@@ -202,7 +202,9 @@ class ClassesController extends Controller
                 $cards = [];
                 $userID = Hashids::encode($user->id);
 
-                $announcements = $classes->announcements()->get();
+                $announcements = $classes->announcements()
+                    ->where('class_id', $classes->id)
+                    ->get();
                 foreach ($announcements as $announcement) {
                     $id = Hashids::encode($announcement['id']);
                     array_push($cards, [
@@ -221,6 +223,12 @@ class ClassesController extends Controller
 
                     if ($role == 'student') {
                         $class_id = Hashids::encode($classes->id);
+                        if ($activity->is_targeted) {
+                            if (!in_array($user->id, $activity->students)) {
+                                continue;
+                            }
+                        }
+
                         $answer = ActivitiesAnswer::where('student_id', $user->id)
                             ->where('activity_id', $activity->id)
                             ->first();
@@ -266,6 +274,7 @@ class ClassesController extends Controller
             },
             'students' => function () use ($classes) {
                 $students = $classes->students()
+                    ->where('users.joined_classes', $classes->id)
                     ->join('profiles', 'profiles.user_id', '=', 'users.id')
                     ->get()
                     ->map(function ($value) {
@@ -387,6 +396,12 @@ class ClassesController extends Controller
 
                 $activities_status = [];
                 foreach ($activities as $activity) {
+                    if ($activity->is_targeted) {
+                        if (!in_array($user->id, $activity->students)) {
+                            continue;
+                        }
+                    }
+
                     $answer = ActivitiesAnswer::where('student_id',
                         Hashids::decode($student_id)[0])
                         ->where('activity_id', $activity->id)

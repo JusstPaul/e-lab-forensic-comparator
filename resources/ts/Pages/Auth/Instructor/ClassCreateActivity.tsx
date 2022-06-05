@@ -12,6 +12,7 @@ import {
   TemplateIcon,
   PencilAltIcon,
   InformationCircleIcon,
+  DocumentDownloadIcon,
 } from '@heroicons/react/outline'
 import { XCircleIcon } from '@heroicons/react/solid'
 import Auth from '@/Layouts/Auth'
@@ -31,6 +32,8 @@ import {
   Image,
   Alert,
   Portal,
+  Highlight,
+  Table,
 } from '@mantine/core'
 import Input from '@/Components/Input'
 import Selection from '@/Components/Selection'
@@ -42,6 +45,9 @@ import Upload from '@/Components/Upload'
 import dayjs from 'dayjs'
 import ImageViewer from 'react-simple-image-viewer'
 import { cloneDeep } from 'lodash'
+import { useModals } from '@mantine/modals'
+import { Link } from '@inertiajs/inertia-react'
+import { Student } from '../InstructorAndStudent/ClassOverview'
 
 export type Activity = 'assignment' | 'exam'
 
@@ -54,6 +60,7 @@ export type Question = {
   instruction: string
   choices?: { type: Choices; active: boolean; data: Array<string> }
   files: FileList | Array<string> | null
+  answer?: string
   points: number
 }
 
@@ -61,6 +68,7 @@ export type Questions = Array<Question>
 
 type Props = {
   id: string
+  current_students: Array<Student>
 }
 
 type RenderItemsProps = {
@@ -161,6 +169,21 @@ const RenderItems: FC<RenderItemsProps> = ({
                     type: 'checkbox',
                   }
                   setCurrentValue({ ...nValue })
+                }
+              }}
+            />
+
+            <Checkbox
+              label="Has Correct Answer"
+              name={`has-answer-${currentValue.id}`}
+              onChange={() => {
+                if (currentValue.answer != undefined) {
+                  setCurrentValue({
+                    ...currentValue,
+                    answer: undefined,
+                  })
+                } else {
+                  setCurrentValue({ ...currentValue, answer: '' })
                 }
               }}
             />
@@ -281,6 +304,53 @@ const RenderItems: FC<RenderItemsProps> = ({
           ) : (
             <></>
           )}
+
+          {currentValue.answer !== undefined ? (
+            <>
+              {currentValue.choices && currentValue.choices.active ? (
+                <Box>
+                  <Selection
+                    selectProps={{
+                      data: currentValue.choices.data.map((value) => ({
+                        value: value,
+                        label: value,
+                      })),
+                      value: currentValue.answer,
+                      placeholder: 'Select answer',
+                      onChange: (value) => {
+                        if (currentValue.answer != undefined && value) {
+                          setCurrentValue({
+                            ...currentValue,
+                            answer: value,
+                          })
+                        }
+                      },
+                    }}
+                  />
+                </Box>
+              ) : (
+                <Box>
+                  <Input
+                    textProps={{
+                      label: 'Answer',
+                      name: `answer-${currentValue.id}`,
+                      value: currentValue.answer,
+                      onChange: (event) => {
+                        if (currentValue.answer != undefined) {
+                          setCurrentValue({
+                            ...currentValue,
+                            answer: event.target.value,
+                          })
+                        }
+                      },
+                    }}
+                  />
+                </Box>
+              )}
+            </>
+          ) : (
+            <></>
+          )}
         </Box>
       )
 
@@ -396,7 +466,7 @@ const RenderItems: FC<RenderItemsProps> = ({
   }
 }
 
-const ClassCreateActivity: FC<Props> = ({ id }) => {
+const ClassCreateActivity: FC<Props> = ({ id, current_students }) => {
   const classes = useStyles()
 
   const atLeastMd = useMediaQuery('(min-width: 992px)')
@@ -440,13 +510,17 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
     date_end: Date
     time_end: Date
     questions: Questions
+    students: Array<string>
   }>('Class:' + id + '/CreateActivity', {
     title: '',
     type: 'assignment',
     date_end: dayjs(new Date()).add(1, 'day').toDate(),
     time_end: new Date(),
     questions: [],
+    students: [],
   })
+
+  const [isShowStudents, setIsShowStudents] = useState(false)
 
   const { errors: error_bag } = usePage().props
 
@@ -518,15 +592,30 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
     }
   }
 
+  const modals = useModals()
+  const openConfirmModal = () =>
+    modals.openConfirmModal({
+      title: `Submit Task`,
+      children: (
+        <Highlight highlight={data.title} size="sm">
+          {`Are you sure you want to post task ${data.title}?`}
+        </Highlight>
+      ),
+      labels: { confirm: 'Confirm', cancel: 'Cancel' },
+      onConfirm: () => {
+        post(`/class/${id}/activity/create`, {
+          _method: 'put',
+        } as any)
+      },
+    })
+
   return (
     <Auth class_id={id} isNavHidden={isImageViewerOpen}>
       <Container size="sm" ref={containerRef}>
         <form
           onSubmit={(event) => {
             event.preventDefault()
-            post(`/class/${id}/activity/create`, {
-              _method: 'put',
-            } as any)
+            openConfirmModal()
           }}
           encType="multipart/form-data"
         >
@@ -610,8 +699,66 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
                   error={{ value: errors.time_end }}
                 />
               </Group>
+
+              <Checkbox
+                label="Only selected students"
+                onChange={(event) =>
+                  setIsShowStudents(event.currentTarget.checked)
+                }
+              />
             </Box>
           </Card>
+
+          {isShowStudents ? (
+            <Card
+              p="sm"
+              withBorder
+              sx={() => ({
+                marginBottom: '1rem',
+              })}
+            >
+              <Table striped>
+                <caption>Target Students</caption>
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Student Number</th>
+                    <th>Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {current_students.map((value) => (
+                    <tr key={value.id}>
+                      <td>
+                        <Checkbox
+                          size="xs"
+                          onChange={(event) => {
+                            const { checked } = event.currentTarget
+                            let nStudents = data.students
+
+                            if (checked) {
+                              nStudents.push(value.id)
+                            } else {
+                              const idx = nStudents.indexOf(value.id)
+                              nStudents.splice(idx, 1)
+                            }
+
+                            setData({ ...data, students: nStudents })
+                          }}
+                        />
+                      </td>
+                      <td>{value.username}</td>
+                      <td style={{ textTransform: 'uppercase' }}>
+                        {value.name}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Card>
+          ) : (
+            <></>
+          )}
 
           {Object.keys(error_bag).length >= 1 && (
             <Alert
@@ -734,6 +881,11 @@ const ClassCreateActivity: FC<Props> = ({ id }) => {
             >
               <Tooltip withArrow label="Add Comparator">
                 <TemplateIcon className={classes.classes.icon} />
+              </Tooltip>
+            </ActionIcon>
+            <ActionIcon variant="hover" component={Link} href="#">
+              <Tooltip withArrow label="Import Previous Task">
+                <DocumentDownloadIcon className={classes.classes.icon} />
               </Tooltip>
             </ActionIcon>
           </Stack>

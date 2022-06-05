@@ -15,10 +15,13 @@ class ClassesActivities extends Model
         'date_end',
         'time_end',
         'questions',
+        'is_targeted',
+        'students',
     ];
 
     protected $casts = [
         'questions' => 'array',
+        'students' => 'array',
     ];
 
     public function classes()

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivitiesAnswer;
 use App\Models\Classes;
 use App\Models\ClassesActivities;
+use App\Models\User;
 use Cache;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
@@ -31,6 +32,7 @@ class ClassesActivitiesController extends Controller
             'questions.*.points' => 'required|numeric',
             'questions.*.files' => 'required_if:questions.*.type,comparator|nullable|max:6|min:2',
             'questions.*.files.*' => 'image',
+            'students' => 'array',
         ]);
 
         $classes = Classes::find(Hashids::decode($class_id)[0]);
@@ -65,6 +67,15 @@ class ClassesActivitiesController extends Controller
             $activity->time_end = $timeInput->toDateTimeString();
         }
         $activity->questions = $questions;
+        $activity->students = [];
+        $activity->is_targeted = false;
+
+        if (!empty($request->students)) {
+            $activity->students = array_map(function ($id) {
+                return Hashids::decode($id)[0];
+            }, $request->students);
+            $activity->is_targeted = true;
+        }
 
         $classes->activities()->save($activity);
 
@@ -77,6 +88,34 @@ class ClassesActivitiesController extends Controller
     {
         return Inertia::render('Auth/Instructor/ClassCreateActivity', [
             'id' => $class_id,
+            'current_students' => function () use ($class_id) {
+                $decoded_class_id = Hashids::decode($class_id)[0];
+                $students = User::role('student')
+                    ->where('users.joined_classes', $decoded_class_id)
+                    ->join('profiles', 'profiles.user_id', '=', 'users.id')
+                    ->get()
+                    ->map(function ($value) {
+                        $name = null;
+                        if ($value->middle_name == null || $value->middle_name == '') {
+                            $name = $value->last_name . ', ' . $value->first_name;
+                        } else {
+                            $name = $value->last_name . ', ' . $value->first_name . ' ' . $value->middle_name[0] . '.';
+                        }
+
+                        return [
+                            'id' => Hashids::encode($value->user_id),
+                            'username' => $value->username,
+                            'name' => $name,
+                            'contact' => $value->contact,
+                        ];
+                    })->toArray();
+
+                usort($students, function ($student1, $student2) {
+                    return strcmp($student1['name'], $student2['name']);
+                });
+
+                return $students;
+            },
         ]);
     }
 

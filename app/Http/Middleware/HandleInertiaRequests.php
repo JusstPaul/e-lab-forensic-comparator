@@ -69,7 +69,13 @@ class HandleInertiaRequests extends Middleware
                         $assignments = [];
                         $exams = [];
 
-                        $activities = $classes->activities()->get();
+                        $activities = $classes->activities()->get()->filter(function ($value) use ($user) {
+                            if ($value->is_targeted) {
+                                return in_array($user->id, $value->students);
+                            }
+                            return true;
+                        });
+
                         foreach ($activities as $activity) {
                             $answer = ActivitiesAnswer::where('student_id', $user->id)->where('activity_id', $activity['id'])->first();
                             if ($answer != null) {

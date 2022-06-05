@@ -17,7 +17,7 @@ class ProfileController extends Controller
             'contact' => 'required|min:10|regex:/^09[0-9]+$/',
             'password_change' => 'required|boolean',
             'password_current' => 'required_if:password_change,1|current_password|nullable',
-            'password_new' => 'required_if:password_change,1|confirmed|nullable',
+            'password_new' => 'required_if:password_change,1|min:6|confirmed|nullable',
         ]);
 
         $user = auth()->user();
