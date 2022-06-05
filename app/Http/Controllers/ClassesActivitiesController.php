@@ -84,10 +84,27 @@ class ClassesActivitiesController extends Controller
         ]);
     }
 
-    public function index($class_id)
+    public function index($class_id, $import_id = null)
     {
         return Inertia::render('Auth/Instructor/ClassCreateActivity', [
             'id' => $class_id,
+            'import_activity' => function () use ($import_id) {
+                if ($import_id == null) {
+                    return;
+                }
+
+                $activity = ClassesActivities::find(Hashids::decode($import_id)[0]);
+
+                // filter comparator
+                $questions = $activity->questions;
+                array_filter($questions, fn($val) => $val['type'] != 'comparator');
+
+                return [
+                    'title' => $activity->title,
+                    'type' => $activity->type,
+                    'questions' => $questions,
+                ];
+            },
             'current_students' => function () use ($class_id) {
                 $decoded_class_id = Hashids::decode($class_id)[0];
                 $students = User::role('student')
@@ -152,16 +169,30 @@ class ClassesActivitiesController extends Controller
 
         return Inertia::render('Auth/Instructor/ClassImportActivity', [
             'id' => $class_id,
-            'activities' => fn() => Classes::where('instructor_id', $user->id)
+            'activities' => fn() => Classes::where('classes.id', Hashids::decode($class_id))
+                ->where('classes.instructor_id', $user->id)
                 ->join('classes_activities', 'classes_activities.classes_id', '=', 'classes.id')
+                ->select('classes_activities.*', 'classes_activities.id as c_id')
                 ->get()
                 ->map(function ($value) {
                     return [
-                        'id' => $value->id,
+                        'id' => Hashids::encode($value->c_id),
                         'title' => $value->title,
                         'created_at' => $value->created_at,
                     ];
                 }),
+        ]);
+    }
+
+    public function import_redirect(Request $request, $class_id)
+    {
+        $request->validate([
+            'activityID' => 'required',
+        ]);
+
+        return redirect()->route('instructor.activity.create', [
+            'class_id' => $class_id,
+            'import_id' => $request->activityID,
         ]);
     }
 

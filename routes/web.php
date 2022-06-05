@@ -52,7 +52,7 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     Route::get('/class/create', [InstructorController::class, 'create_class']);
     Route::get('/class/edit/{class_id}', [ClassesController::class, 'edit']);
     Route::get('/class/{class_id}/students/add', [ClassesController::class, 'show_add_students']);
-    Route::get('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'index']);
+    Route::get('/class/{class_id}/activity/create/{import_id?}', [ClassesActivitiesController::class, 'index'])->name('instructor.activity.create');
     Route::get('/class/{class_id}/activity/import', [ClassesActivitiesController::class, 'import_index']);
     Route::get('/class/{class_id}/activity/view/{activity_id}', [ClassesActivitiesController::class, 'view']);
     Route::get('/class/{class_id}/activity/report/{activity_id}', [ClassesActivitiesController::class, 'show_report']);
@@ -65,6 +65,7 @@ Route::group(['middleware' => ['auth', 'role:instructor']], function () {
     Route::post('/class/{class_id}/students/remove', [ClassesController::class, 'remove_students']);
     Route::post('/class/{class_id}/activity/create', [ClassesActivitiesController::class, 'store']);
     Route::post('/class/{class_id}/activity/delete/{activity_id}', [ClassesActivitiesController::class, 'destroy']);
+    Route::post('/class/{class_id}/activity/import', [ClassesActivitiesController::class, 'import_redirect']);
     Route::post('/class/{class_id}/activity/{activity_id}/show/{student_id}', [ActivitiesChecksController::class, 'store']);
     Route::post('/class/{class_id}/announcement/create', [AnnouncementsController::class, 'store']);
     Route::post('/class/{class_id}/announcement/delete/{announcement_id}', [AnnouncementsController::class, 'destroy']);

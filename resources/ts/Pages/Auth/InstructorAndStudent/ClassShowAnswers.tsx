@@ -157,7 +157,12 @@ const ClassShowAnswers: FC<Props> = ({
             </Text>
           </Group>
 
-          <Stack>
+          <Stack
+            style={{
+              overflow: 'visible',
+              position: 'static',
+            }}
+          >
             {questions.questions.questions.map((value, index) => (
               <Popover
                 opened={data.checks.checks[index].hasComment}
@@ -166,12 +171,23 @@ const ClassShowAnswers: FC<Props> = ({
                 gutter={5}
                 withinPortal
                 key={index}
+                styles={{
+                  target: {
+                    overflow: 'visible',
+                    position: 'static',
+                  },
+                  root: {
+                    overflow: 'visible',
+                    position: 'static',
+                  },
+                }}
                 target={
                   <Card
                     p="sm"
                     withBorder
                     sx={() => ({
                       marginBottom: '1rem',
+                      position: 'static',
                     })}
                   >
                     <Card.Section
@@ -182,6 +198,8 @@ const ClassShowAnswers: FC<Props> = ({
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'end',
+                        overflow: 'visible',
+                        position: 'static',
                       })}
                     >
                       <Text transform="capitalize">
@@ -299,7 +317,13 @@ const ClassShowAnswers: FC<Props> = ({
                         )}
                       </Group>
                     </Card.Section>
-                    <Box py="sm">
+                    <Box
+                      py="sm"
+                      style={{
+                        overflow: 'visible',
+                        position: 'static',
+                      }}
+                    >
                       <RenderAnswer
                         question={value}
                         index={index}
@@ -415,19 +439,38 @@ const RenderAnswer: FC<RenderAnswerProps> = ({ question, index, answer }) => {
 
     case 'comparator':
       return (
-        <Box>
+        <Stack
+          style={{
+            overflow: 'visible',
+          }}
+        >
           <Text>{question.instruction}</Text>
-          <Stack>
+          <Stack
+            style={{
+              overflow: 'visible',
+            }}
+          >
             {(answer as AnnotationsState).map((value, index) => (
-              <Box key={index}>
+              <Box
+                key={index}
+                style={{
+                  overflow: 'visible',
+                }}
+              >
                 <Marker {...value} />
-                <Box className={classes.answer}>
-                  <div dangerouslySetInnerHTML={{ __html: value.essay }}></div>
-                </Box>
+                {value.essay.length > 0 ? (
+                  <Box className={classes.answer}>
+                    <div
+                      dangerouslySetInnerHTML={{ __html: value.essay }}
+                    ></div>
+                  </Box>
+                ) : (
+                  <></>
+                )}
               </Box>
             ))}
           </Stack>
-        </Box>
+        </Stack>
       )
 
     default:
@@ -452,8 +495,6 @@ const Marker: FC<Annotation> = (props) => {
   const [url, setUrl] = useState('')
   const [srcImg, setSrcImg] = useState<HTMLImageElement | null>(null)
   const [parent, setParent] = useState<HTMLElement | null | undefined>()
-
-  console.log(props.state)
 
   useEffect(() => {
     if (overRef.current) {
@@ -497,58 +538,67 @@ const Marker: FC<Annotation> = (props) => {
     } */
   }, [])
 
+  const [position, setPosition] = useState<'relative' | 'static'>('relative')
+
   return (
-    <Stack>
-      <div
+    <div
+      style={{
+        position: position,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        paddingTop: 50,
+      }}
+    >
+      <img
+        src={url}
+        ref={overRef}
         style={{
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          paddingTop: 50,
+          cursor: 'pointer',
         }}
-      >
-        <img
-          src={url}
-          ref={overRef}
-          style={{
-            cursor: 'pointer',
-          }}
-        />
-        <img
-          src={url}
-          ref={imgRef}
-          style={{
-            cursor: 'pointer',
-            position: 'absolute',
-          }}
-          onClick={() => {
-            if (imgRef.current) {
-              const markerArea = new markerjs2.MarkerArea(imgRef.current)
+      />
+      <img
+        src={url}
+        ref={imgRef}
+        style={{
+          cursor: 'pointer',
+          position: 'absolute',
+        }}
+        onClick={() => {
+          if (imgRef.current) {
+            const markerArea = new markerjs2.MarkerArea(imgRef.current)
 
-              if (parent) {
-                markerArea.targetRoot = parent
-              }
-
-              markerArea.addEventListener('render', (event) => {
-                if (imgRef.current) {
-                  imgRef.current.src = event.dataUrl
-                }
-              })
-
-              markerArea.renderAtNaturalSize = true
-              markerArea.renderImageType = 'image/png'
-              markerArea.renderImageQuality = 1.0
-              markerArea.show()
-
-              if (props.state) {
-                markerArea.restoreState(props.state)
-              }
+            if (parent) {
+              markerArea.targetRoot = parent
             }
-          }}
-        />
-      </div>
-    </Stack>
+
+            markerArea.availableMarkerTypes = [
+              markerjs2.TextMarker,
+              markerjs2.FreehandMarker,
+            ]
+
+            markerArea.addEventListener('render', (event) => {
+              if (imgRef.current) {
+                imgRef.current.src = event.dataUrl
+              }
+            })
+
+            markerArea.addEventListener('show', () => setPosition('static'))
+            markerArea.addEventListener('close', () => setPosition('relative'))
+
+            markerArea.settings.displayMode = 'popup'
+            markerArea.renderAtNaturalSize = true
+            markerArea.renderImageType = 'image/png'
+            markerArea.renderImageQuality = 1.0
+            markerArea.show()
+
+            if (props.state) {
+              markerArea.restoreState(props.state)
+            }
+          }
+        }}
+      />
+    </div>
   )
 }
 

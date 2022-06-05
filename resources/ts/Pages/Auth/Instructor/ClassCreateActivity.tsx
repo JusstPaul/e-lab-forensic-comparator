@@ -68,6 +68,11 @@ export type Questions = Array<Question>
 
 type Props = {
   id: string
+  import_activity: {
+    title: string
+    type: QuestionType
+    questions: Questions
+  } | null
   current_students: Array<Student>
 }
 
@@ -466,7 +471,11 @@ const RenderItems: FC<RenderItemsProps> = ({
   }
 }
 
-const ClassCreateActivity: FC<Props> = ({ id, current_students }) => {
+const ClassCreateActivity: FC<Props> = ({
+  id,
+  import_activity,
+  current_students,
+}) => {
   const classes = useStyles()
 
   const atLeastMd = useMediaQuery('(min-width: 992px)')
@@ -512,11 +521,11 @@ const ClassCreateActivity: FC<Props> = ({ id, current_students }) => {
     questions: Questions
     students: Array<string>
   }>('Class:' + id + '/CreateActivity', {
-    title: '',
-    type: 'assignment',
+    title: import_activity?.title ?? '',
+    type: (import_activity?.type as any) ?? 'assignment',
     date_end: dayjs(new Date()).add(1, 'day').toDate(),
     time_end: new Date(),
-    questions: [],
+    questions: import_activity?.questions ?? [],
     students: [],
   })
 
@@ -883,8 +892,13 @@ const ClassCreateActivity: FC<Props> = ({ id, current_students }) => {
                 <TemplateIcon className={classes.classes.icon} />
               </Tooltip>
             </ActionIcon>
-            <ActionIcon variant="hover" component={Link} href="#">
-              <Tooltip withArrow label="Import Previous Task">
+            <ActionIcon
+              variant="hover"
+              component={Link}
+              href={`/class/${id}/activity/import`}
+              replace
+            >
+              <Tooltip withArrow label="Use Previous Task">
                 <DocumentDownloadIcon className={classes.classes.icon} />
               </Tooltip>
             </ActionIcon>
