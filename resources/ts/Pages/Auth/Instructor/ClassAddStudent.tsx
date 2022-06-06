@@ -69,8 +69,11 @@ const ClassAddStudent: FC<Props> = ({ id, students }) => {
                     const searchRegex = new RegExp(search, 'ig')
                     const nIndexes: Array<number> = []
 
-                    students.forEach((value, index) => {
-                      if (value.name.match(searchRegex) == null) {
+                    students.forEach(({ name, student_id }, index) => {
+                      if (
+                        name.match(searchRegex) == null &&
+                        student_id.match(searchRegex) == null
+                      ) {
                         nIndexes.push(index)
                       }
                     })
@@ -120,7 +123,7 @@ const ClassAddStudent: FC<Props> = ({ id, students }) => {
                 </thead>
                 <tbody>
                   {students.map((value, index) => (
-                    <tr key={index}>
+                    <tr key={value.id}>
                       {searchIndexes.indexOf(index) == -1 ? (
                         <>
                           <td>
@@ -141,6 +144,7 @@ const ClassAddStudent: FC<Props> = ({ id, students }) => {
                                 }
                                 setData({ selected: nSelected })
                               }}
+                              checked={data.selected.indexOf(value.id) != -1}
                             />
                           </td>
                           <td>{value.student_id}</td>

@@ -14,7 +14,7 @@ import {
   InformationCircleIcon,
   DocumentDownloadIcon,
 } from '@heroicons/react/outline'
-import { XCircleIcon } from '@heroicons/react/solid'
+import { SearchCircleIcon, XCircleIcon } from '@heroicons/react/solid'
 import Auth from '@/Layouts/Auth'
 import Editor from '@/Components/Editor'
 import {
@@ -483,7 +483,6 @@ const ClassCreateActivity: FC<Props> = ({
   const generateID = () => {
     const val = indexRef.current
     indexRef.current++
-    console.log(val)
     return val
   }
 
@@ -618,6 +617,9 @@ const ClassCreateActivity: FC<Props> = ({
       },
     })
 
+  const [search, setSearch] = useState('')
+  const [searchIndexes, setSearchIndexes] = useState<Array<number>>([])
+
   return (
     <Auth class_id={id} isNavHidden={isImageViewerOpen}>
       <Container size="sm" ref={containerRef}>
@@ -726,6 +728,47 @@ const ClassCreateActivity: FC<Props> = ({
                 marginBottom: '1rem',
               })}
             >
+              <Group position="right">
+                <Input
+                  textProps={{
+                    placeholder: 'Search student',
+                    value: search,
+                    onChange: (event) => setSearch(event.target.value),
+                    rightSection: (
+                      <ActionIcon
+                        onClick={() => {
+                          if (search.length == 0) {
+                            setSearchIndexes([])
+                            return
+                          }
+
+                          try {
+                            const searchRegex = new RegExp(search, 'ig')
+                            const nIndexes: Array<number> = []
+
+                            current_students.forEach(
+                              ({ name, username }, index) => {
+                                if (
+                                  name.match(searchRegex) == null &&
+                                  username.match(searchRegex) == null
+                                ) {
+                                  nIndexes.push(index)
+                                }
+                              }
+                            )
+
+                            setSearchIndexes(nIndexes)
+                          } catch (error) {
+                            console.error(error)
+                          }
+                        }}
+                      >
+                        <SearchCircleIcon className={classes.classes.icon} />
+                      </ActionIcon>
+                    ),
+                  }}
+                />
+              </Group>
               <Table striped>
                 <caption>Target Students</caption>
                 <thead>
@@ -736,30 +779,37 @@ const ClassCreateActivity: FC<Props> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {current_students.map((value) => (
+                  {current_students.map((value, index) => (
                     <tr key={value.id}>
-                      <td>
-                        <Checkbox
-                          size="xs"
-                          onChange={(event) => {
-                            const { checked } = event.currentTarget
-                            let nStudents = data.students
+                      {searchIndexes.indexOf(index) == -1 ? (
+                        <>
+                          <td>
+                            <Checkbox
+                              size="xs"
+                              onChange={(event) => {
+                                const { checked } = event.currentTarget
+                                let nStudents = data.students
 
-                            if (checked) {
-                              nStudents.push(value.id)
-                            } else {
-                              const idx = nStudents.indexOf(value.id)
-                              nStudents.splice(idx, 1)
-                            }
+                                if (checked) {
+                                  nStudents.push(value.id)
+                                } else {
+                                  const idx = nStudents.indexOf(value.id)
+                                  nStudents.splice(idx, 1)
+                                }
 
-                            setData({ ...data, students: nStudents })
-                          }}
-                        />
-                      </td>
-                      <td>{value.username}</td>
-                      <td style={{ textTransform: 'uppercase' }}>
-                        {value.name}
-                      </td>
+                                setData({ ...data, students: nStudents })
+                              }}
+                              checked={data.students.indexOf(value.id) != -1}
+                            />
+                          </td>
+                          <td>{value.username}</td>
+                          <td style={{ textTransform: 'uppercase' }}>
+                            {value.name}
+                          </td>
+                        </>
+                      ) : (
+                        <></>
+                      )}
                     </tr>
                   ))}
                 </tbody>

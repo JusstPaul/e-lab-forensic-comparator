@@ -118,10 +118,6 @@ class ClassesController extends Controller
             'joined_classes' => null,
         ]);
 
-        return redirect()->route('class.students.view', [
-            'class_id' => $class_id,
-        ]);
-
         return redirect('/class/overview/' . $class_id . '?tab=1');
     }
 
