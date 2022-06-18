@@ -13,16 +13,15 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('classes_students', function (Blueprint $table) {
+        Schema::create('activities_checks', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('classes_id');
-            $table->foreign('classes_id')
+            $table->boolean('is_checked')->default(false);
+            $table->integer('score')->default(0);
+            $table->json('checks');
+            $table->bigInteger('answer_id');
+            $table->foreign('answer_id')
                 ->references('id')
-                ->on('classes')
-                ->onDelete('cascade');
-            $table->bigInteger('student_id')
-                ->references('id')
-                ->on('users')
+                ->on('activities_answers')
                 ->onDelete('cascade');
             $table->timestamps();
         });
@@ -35,6 +34,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('classes_students');
+        Schema::dropIfExists('activities_checks');
     }
 };

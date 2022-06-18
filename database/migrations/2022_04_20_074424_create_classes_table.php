@@ -18,13 +18,8 @@ return new class extends Migration
             $table->string('code');
             $table->string('room');
             $table->string('day');
-            $table->time('time_start');
-            $table->time('time_end');
-            $table->bigInteger('instructor_id');
-            $table->foreign('instructor_id')
-                ->references('id')
-                ->on('users')
-                ->onDelete('cascade');
+            $table->dateTime('time_start');
+            $table->dateTime('time_end');
             $table->timestamps();
         });
     }

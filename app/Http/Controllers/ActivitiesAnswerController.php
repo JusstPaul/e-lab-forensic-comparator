@@ -3,13 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivitiesAnswer;
+use App\Models\ClassesActivities;
+use Cache;
+use Illuminate\Http\File;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 use Vinkla\Hashids\Facades\Hashids;
 
 class ActivitiesAnswerController extends Controller
 {
     public function store(Request $request, $class_id, $activity_id)
     {
+        $user_id = auth()->user()->id;
+        $decoded_activity_id = Hashids::decode($activity_id)[0];
+        $activity = ClassesActivities::find($decoded_activity_id);
+
         $request->validate(([
             'answers' => 'required',
             'answers.id' => 'required',
@@ -31,14 +40,124 @@ class ActivitiesAnswerController extends Controller
             'answers.data.*.answer.essay' => 'max:3000',
         ]));
 
-        ActivitiesAnswer::create([
-            'activity_id' => Hashids::decode($activity_id)[0],
-            'student_id' => auth()->user()->id,
+        $answer = ActivitiesAnswer::create([
+            'activity_id' => $decoded_activity_id,
+            'student_id' => $user_id,
             'answers' => $request->answers,
         ]);
 
+        Cache::forget('user:' . $user_id . '-class:' . $class_id . '-activity:' . $activity_id);
+
+        $answers = $request->answers['data'];
+        $checks = [];
+        $points = 0;
+        foreach ($activity->questions as $key => $question) {
+            if ($question['type'] == 'question') {
+                if (isset($question['answer']) && $question['answer'] !== '') {
+                    if ($question['answer'] == $answers[$key]['answer']) {
+                        $points += $answers[$key]['points'];
+                        array_push($checks, [
+                            'isChecked' => true,
+                            'points' => $answers[$key]['points'],
+                            'hasComment' => false,
+                            'comment' => '',
+                        ]);
+                        continue;
+                    }
+                }
+            }
+
+            array_push($checks, [
+                'isChecked' => false,
+                'points' => $answers[$key]['points'],
+                'hasComment' => false,
+                'comment' => '',
+            ]);
+        }
+
+        if ($points > 0) {
+            $answer->checks()->create([
+                'score' => $points,
+                'checks' => $checks,
+                'is_checked' => false,
+            ]);
+        }
+
         return redirect()->route('class.overview', [
             'class_id' => $class_id,
+        ]);
+    }
+
+    public function restore_answers(Request $request, $class_id, $activity_id, $answer_index)
+    {
+        $answer = Cache::get('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id);
+        $data = $request->data;
+
+        $finalData = [];
+        foreach ($data as $d) {
+            $newData = $d;
+            $newData['image'] = Storage::disk('s3')
+                ->put('cache/' . 'user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id, new File($newData['image']));
+            $newData['isKey'] = true;
+
+            array_push($finalData, $newData);
+        }
+
+        $answer['data'][$answer_index]['answer'] = $finalData;
+        Cache::forever('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id, $answer);
+
+        return redirect()->route('class.activity', [
+            'activity_id' => $activity_id,
+            'class_id' => $class_id,
+        ]);
+    }
+
+    public function store_answer_cache(Request $request, $class_id, $activity_id, $answer_index)
+    {
+        Cache::forever('user:' . auth()->user()->id . '-class:' . $class_id . '-activity:' . $activity_id, $request->answers);
+
+        return redirect()->route('class.activity.comparator', [
+            'class_id' => $class_id,
+            'activity_id' => $activity_id,
+            'answer_index' => $answer_index,
+        ]);
+    }
+
+    public function show_answers($class_id, $activity_id, $student_id)
+    {
+
+        $answer = ActivitiesAnswer::find(Hashids::decode($activity_id)[0]);
+
+        return Inertia::render('Auth/InstructorAndStudent/ClassShowAnswers', [
+            'id' => $class_id,
+            'activity_id' => $activity_id,
+            'student_id' => $student_id,
+            'answerChecked' => $answer->is_checked,
+            'questions' => function () use ($answer) {
+
+                $questions = $answer->classes;
+
+                $total_points = 0;
+                foreach ($questions['questions'] as $question) {
+                    if ($question['points'] != null) {
+                        $total_points += $question['points'];
+                    }
+                }
+
+                return [
+                    'questions' => $questions,
+                    'total_points' => $total_points,
+                ];
+            },
+            'answers' => function () use ($answer) {
+                return [
+                    'answers' => [
+                        'id' => $answer['answers']['id'],
+                        'data' => $answer['answers']['data'],
+                    ],
+                    'checks' => $answer->checks,
+                ];
+            },
         ]);
     }
 }

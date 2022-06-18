@@ -15,10 +15,13 @@ class ClassesActivities extends Model
         'date_end',
         'time_end',
         'questions',
+        'is_targeted',
+        'students',
     ];
 
     protected $casts = [
         'questions' => 'array',
+        'students' => 'array',
     ];
 
     public function classes()
@@ -28,6 +31,6 @@ class ClassesActivities extends Model
 
     public function activities()
     {
-        return $this->hasMany(ActivitiesAnswer::class, 'activities_id');
+        return $this->hasMany(ActivitiesAnswer::class, 'activity_id');
     }
 }

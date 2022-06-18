@@ -1,34 +1,56 @@
-import { PropsWithChildren } from "react";
-import { Head } from "@inertiajs/inertia-react";
+import { PropsWithChildren, useEffect, useState } from 'react'
+import { Head } from '@inertiajs/inertia-react'
+import { AppShell, Box, Header, Title } from '@mantine/core'
 
 type Props = PropsWithChildren<{
-    title?: string;
-}>;
+  title?: string
+}>
 
 const Guest = ({ title, children }: Props) => {
-    const headTitle = "e-Lab Forensic Comparator";
-    return (
-        <>
-            <Head title={!title ? headTitle : title + " • " + headTitle} />
+  const [headTitle, setHeadTitle] = useState('e-Lab Forensic Ballistics')
+  useEffect(() => {
+    if (title) {
+      setHeadTitle(`${headTitle} • ${title}`)
+    }
+  }, [])
 
-            <main>
-                <div className="box-border bg-primary pt-8 md:pt-14 pb-4 px-16">
-                    <div className="flex justify-center">
-                        <span className="text-center text-3xl font-black select-none">
-                            Data Center College of the Philippines of Laoag,
-                            Inc.
-                        </span>
-                    </div>
-                </div>
+  return (
+    <>
+      <Head title={headTitle} />
 
-                <img
-                    src="/storage/assets/dccp-logo.png"
-                    className="w-fit mx-auto py-4"
-                />
-                {children}
-            </main>
-        </>
-    );
-};
+      <AppShell
+        fixed
+        styles={(theme) => ({
+          main: {
+            backgroundColor: theme.colors.gray[1],
+            color: theme.colors.gray[0],
+            position: 'relative',
+          },
+        })}
+        header={
+          <Header height={120}>
+            <Box
+              component="div"
+              sx={(theme) => ({
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center',
+                height: '100%',
+                color: theme.colors.gray[0],
+              })}
+            >
+              <Title order={1}>
+                Data Center College of the Philippines of Laoag, Inc.
+              </Title>
+            </Box>
+          </Header>
+        }
+      >
+        {children}
+      </AppShell>
+    </>
+  )
+}
 
-export default Guest;
+export default Guest

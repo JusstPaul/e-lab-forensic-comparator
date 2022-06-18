@@ -1,22 +1,49 @@
-import { ChangeEvent, FC } from 'react'
+import { ChangeEvent, FC, CSSProperties, useEffect, useState } from 'react'
 import { Inertia } from '@inertiajs/inertia'
 import { useForm, usePage } from '@inertiajs/inertia-react'
-import { SideBarSection } from '@/Layouts/Auth'
-import { Questions, Activity } from '../Instructor/ClassCreateActivity'
-import RadioGroup from '@/Components/RadioGroup'
+import {
+  Questions,
+  Activity,
+  Question,
+} from '../Instructor/ClassCreateActivity'
 import CheckBox from '@/Components/CheckBox'
 import TextInput from '@/Components/TextInput'
 import Error from '@/Components/Error'
-import Class from '@/Layouts/Class'
+import Auth from '@/Layouts/Auth'
 import moment from 'moment'
-import { useSelector, useDispatch } from 'react-redux'
-import { AnswerStates } from '@/Lib/answersReducer'
 import { cloneDeep } from 'lodash'
+import Editor from '@/Components/Editor'
+import { AnnotationsState } from './Comparator'
+import {
+  Box,
+  Button,
+  Card,
+  Checkbox,
+  Container,
+  Group,
+  Stack,
+  Text,
+  RadioGroup,
+  Radio,
+  Alert,
+} from '@mantine/core'
+import { InformationCircleIcon } from '@heroicons/react/outline'
+import Input from '@/Components/Input'
+import useStyles from '@/Lib/styles'
+
+type AnswerData = Array<{
+  answer: string | Array<string> | AnnotationsState
+  points: number
+}>
+
+export type AnswerState = {
+  id: string
+  data: AnswerData
+}
 
 type Props = {
   id: string
   activity_id: string
-  sidebar?: Array<SideBarSection>
   activity: {
     id: string
     title: string
@@ -27,33 +54,382 @@ type Props = {
     created_at: string
   }
   total_points: number
+  cached_answer?: AnswerState
+}
+
+type RenderItemsProps = {
+  value: Question
+  id: string
+  activity_id: string
+  index: number
+  data: {
+    answers: { id: string; data: AnswerData }
+  }
+  setData: Function
+}
+const RenderItems: FC<RenderItemsProps> = ({
+  value,
+  id,
+  activity_id,
+  index,
+  data,
+  setData,
+}) => {
+  const [answer, setAnswer] = useState(data.answers.data[index])
+  useEffect(() => {
+    let nAnswersData = data.answers.data
+    nAnswersData[index] = answer
+    setData({
+      ...data,
+      answers: {
+        ...data.answers,
+        data: nAnswersData,
+      },
+    })
+  }, [answer])
+
+  switch (value.type) {
+    case 'directions':
+      return (
+        <Text>
+          <div dangerouslySetInnerHTML={{ __html: value.instruction }}></div>
+        </Text>
+      )
+
+    case 'question': {
+      return (
+        <Stack>
+          <Text>{value.instruction}</Text>
+          {value.choices && value.choices.active ? (
+            <>
+              {value.choices.type == 'checkbox' ? (
+                <Stack>
+                  {value.choices.data.map((val, idx) => (
+                    <Checkbox
+                      label={val}
+                      key={idx}
+                      defaultChecked={
+                        (
+                          answer as {
+                            points: number
+                            answer: Array<string>
+                          }
+                        ).answer.length > 0 &&
+                        (
+                          answer as {
+                            points: number
+                            answer: Array<String>
+                          }
+                        ).answer.includes(val)
+                      }
+                      onChange={(event) => {
+                        let nAnswer = answer.answer as Array<string>
+
+                        if (event.currentTarget.checked) {
+                          nAnswer.push(val)
+                        } else {
+                          const i = nAnswer.indexOf(val)
+                          nAnswer.splice(i, 1)
+                        }
+
+                        setAnswer({
+                          ...answer,
+                          answer: nAnswer,
+                        })
+                      }}
+                    />
+                  ))}
+                </Stack>
+              ) : (
+                <RadioGroup
+                  value={answer.answer as string}
+                  onChange={(value) => {
+                    setAnswer({ ...answer, answer: value })
+                  }}
+                >
+                  {value.choices.data.map((val, idx) => (
+                    <Radio key={idx} value={val} label={val} />
+                  ))}
+                </RadioGroup>
+              )}
+            </>
+          ) : (
+            <Input
+              textProps={{
+                name: 'question-text',
+                autoFocus: index == 0,
+                value: answer.answer as string,
+                onChange: (event) => {
+                  setAnswer({
+                    ...answer,
+                    answer: event.target.value,
+                  })
+                },
+              }}
+            />
+          )}
+        </Stack>
+      )
+    }
+
+    case 'comparator':
+      return (
+        <Stack>
+          <Text>{value.instruction}</Text>
+          <Button
+            type="button"
+            onClick={() => {
+              Inertia.post(
+                `/class/${id}/activity/${activity_id}/comparator/${index}`,
+                data as any
+              )
+            }}
+          >
+            Open Comparator
+          </Button>
+        </Stack>
+      )
+
+    case 'essay':
+      return (
+        <Stack>
+          <Text>{value.instruction}</Text>
+          <Editor
+            name="essay-text"
+            autoFocus={index == 0}
+            setContents={answer.answer as string}
+            onChange={(content) => {
+              setAnswer({
+                ...answer,
+                answer: content,
+              })
+            }}
+          />
+        </Stack>
+      )
+
+    default:
+      return (
+        <Text size="sm" color="red">
+          Invalid Item!
+        </Text>
+      )
+  }
 }
 
 const ActivityAnswer: FC<Props> = ({
   id,
   activity_id,
-  sidebar,
   activity,
   total_points,
+  cached_answer,
 }) => {
-  const date = activity.date_end + ' ' + activity.time_end
+  const [dateStr, setDateStr] = useState('')
+  const [isLate, setIsLate] = useState(false)
+
+  useEffect(() => {
+    const date = moment(new Date())
+    const dateEndMoment = moment(activity.date_end)
+    const timeEndMoment = moment(activity.time_end)
+
+    dateEndMoment.set({
+      hour: timeEndMoment.get('hour'),
+      minute: timeEndMoment.get('minute'),
+    })
+
+    setDateStr(dateEndMoment.format('ddd DD MMMM, h:mm A'))
+    setIsLate(dateEndMoment.isSameOrBefore(date))
+  }, [])
+
+  const initializeAnswers = () => {
+    if (cached_answer) {
+      // TODO: With comparator
+      return {
+        ...cached_answer,
+        data: cached_answer.data.map((value, index) => {
+          switch (activity.questions[index].type) {
+            case 'directions':
+              return value
+
+            case 'question':
+              if (value.answer == null) {
+                if (activity.questions[index].choices != undefined) {
+                  const { active, type, data } =
+                    activity.questions[index].choices!
+                  if (active) {
+                    if (type == 'checkbox') {
+                      return {
+                        ...value,
+                        answer: '',
+                      }
+                    } else if (type == 'radio') {
+                      return {
+                        ...value,
+                        answer: [data[0]],
+                      }
+                    }
+                  } else {
+                    return { ...value, answer: '' }
+                  }
+                } else {
+                  return { ...value, answer: '' }
+                }
+              }
+              return value
+            // @ts-expect-error
+            case 'essay':
+              if (value.answer == null) {
+                return { ...value, answer: '' }
+              }
+            case 'directions':
+            case 'comparator':
+              return value
+            default:
+              return { ...value, answer: '' }
+          }
+        }),
+      }
+    }
+
+    return {
+      id: activity_id,
+      data: activity.questions.map((value) => {
+        switch (value.type) {
+          // @ts-ignore
+          case 'question':
+            if (value.choices && value.choices.active) {
+              if (value.choices.type == 'radio') {
+                return {
+                  points: value.points,
+                  answer: value.choices.data[0],
+                }
+              } else {
+                return {
+                  points: value.points,
+                  answer: [],
+                }
+              }
+            }
+          case 'essay':
+            return {
+              points: value.points,
+              answer: '',
+            }
+          case 'comparator':
+            return {
+              points: value.points,
+              answer: [],
+            }
+          default:
+            return undefined
+        }
+      }) as AnswerData,
+    }
+  }
+
+  const { data, setData, post, processing, errors } = useForm({
+    answers: initializeAnswers(),
+  })
+  const { errors: error_bag } = usePage().props
+
+  const classes = useStyles()
+
+  return (
+    <Auth class_id={id}>
+      <Container size="sm">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            post(`/class/${id}/activity/${activity_id}`)
+          }}
+        >
+          <Box py="lg">
+            <Text size="xl" align="center">
+              {activity.title}
+            </Text>
+            <Text size="sm" align="center" color={isLate ? 'red' : 'gray'}>
+              Due: {dateStr}
+            </Text>
+          </Box>
+          {Object.keys(error_bag).length >= 1 && (
+            <Alert
+              icon={<InformationCircleIcon className={classes.classes.icon} />}
+              title="Create Task Error"
+              color="red"
+            >
+              Please check your questions
+            </Alert>
+          )}
+          <Stack>
+            {activity.questions.map((value, index) => (
+              <Card
+                key={index}
+                p="sm"
+                withBorder
+                sx={() => ({
+                  marginBottom: '1rem',
+                })}
+              >
+                <Card.Section
+                  p="sm"
+                  sx={(theme) => ({
+                    backgroundColor: theme.colors.cyan[7],
+                    color: theme.colors.gray[0],
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'end',
+                  })}
+                >
+                  <Text transform="capitalize">
+                    {value.type != 'directions' ? <>{index + 1}. </> : ''}
+                    {value.type}
+                  </Text>
+                  {value.points > 0 && (
+                    <Text size="sm">
+                      {value.points} {value.points > 1 ? 'Points' : 'Point'}
+                    </Text>
+                  )}
+                </Card.Section>
+                <Box py="sm">
+                  <RenderItems
+                    value={value}
+                    index={index}
+                    activity_id={activity_id}
+                    id={id}
+                    data={data}
+                    setData={setData}
+                  />
+                </Box>
+              </Card>
+            ))}
+          </Stack>
+          <Group position="right">
+            <Button
+              type="submit"
+              sx={(theme) => ({
+                marginTop: theme.spacing.md,
+              })}
+              loading={processing}
+            >
+              Submit
+            </Button>
+          </Group>
+        </form>
+      </Container>
+    </Auth>
+  )
+  /*   const date = activity.date_end + ' ' + activity.time_end
   const isLate = new Date(date).getTime() <= new Date().getTime()
 
   const { errors: error_bag } = usePage().props
-
-  const answers = useSelector<AnswerStates, AnswerStates['answers']>(
-    (state) => state.answers
-  )
-  const dispatch = useDispatch()
 
   const initializeAnswers = () => {
     const emptyAnswer = {
       id: activity_id,
       data: activity.questions.map((value) => {
         switch (value.type) {
-          //  @ts-expect-error
           case 'question':
-            if (value.choices && value.choices.active == 1) {
+            if (value.choices != undefined && value.choices.active == 1) {
               if (value.choices.type == 'radio') {
                 return {
                   points: value.points,
@@ -69,37 +445,7 @@ const ActivityAnswer: FC<Props> = ({
           case 'comparator':
             return {
               points: value.points,
-              answer: {
-                title: activity.title,
-                date: date,
-                instructions: value.instruction,
-                position: 50,
-                images: value.files,
-                styles: {
-                  left: {},
-                  right: {},
-                },
-                scales: {
-                  left: 1,
-                  right: 1,
-                },
-                location: {
-                  left: {
-                    x: 0,
-                    y: 0,
-                  },
-                  right: {
-                    x: 0,
-                    y: 0,
-                  },
-                },
-                current: {
-                  left: 0,
-                  right: 1,
-                },
-                select_mode: 'left',
-                essay: '',
-              },
+              answer: [],
             }
           case 'directions':
           default:
@@ -108,14 +454,55 @@ const ActivityAnswer: FC<Props> = ({
       }),
     }
 
-    const findAnswer = answers.find((value) => value.id == activity_id)
+    if (cached_answer != null) {
+      const nCachedAswer = cached_answer
+      nCachedAswer.data = nCachedAswer.data!.map((value, index) => {
+        switch (activity.questions[index].type) {
+          case 'directions':
+            return value
 
-    if (findAnswer) {
-      return cloneDeep(findAnswer)
+          case 'question':
+            if (value.answer == null) {
+              if (activity.questions[index].choices != undefined) {
+                const { active, type, data } =
+                  activity.questions[index].choices!
+                if (active == 1) {
+                  if (type == 'checkbox') {
+                    return {
+                      ...value,
+                      answer: '',
+                    }
+                  } else if (type == 'radio') {
+                    return {
+                      ...value,
+                      answer: [data[0]],
+                    }
+                  }
+                } else {
+                  return { ...value, answer: '' }
+                }
+              } else {
+                return { ...value, answer: '' }
+              }
+            }
+            return value
+          // @ts-expect-error
+          case 'essay':
+            if (value.answer == null) {
+              return { ...value, answer: '' }
+            }
+          case 'directions':
+          case 'comparator':
+            return value
+          default:
+            return { ...value, answer: '' }
+        }
+      }) as AnswerData
+
+      return nCachedAswer
     }
 
-    dispatch({ type: 'ADD_ANSWER', payload: emptyAnswer })
-    return cloneDeep(emptyAnswer)
+    return emptyAnswer
   }
 
   const { data, setData, post, processing, errors } = useForm({
@@ -189,12 +576,20 @@ const ActivityAnswer: FC<Props> = ({
                           label={val}
                           name="choice"
                           key={idx}
-                          defaultChecked={(
-                            data.answers!.data![index] as {
-                              points: number
-                              answer: Array<string>
-                            }
-                          ).answer.includes(val)}
+                          defaultChecked={
+                            (
+                              data.answers!.data![index] as {
+                                points: number
+                                answer: Array<string>
+                              }
+                            ).answer != null &&
+                            (
+                              data.answers!.data![index] as {
+                                points: number
+                                answer: Array<string>
+                              }
+                            ).answer.includes(val)
+                          }
                           onChange={(event) => handleInputChange(event, val)}
                         />
                       ))}
@@ -239,6 +634,27 @@ const ActivityAnswer: FC<Props> = ({
         return (
           <div>
             <div className="prose">{instruction}</div>
+            <Editor
+              name="essay-text"
+              autoFocus={index == 0}
+              setContents={
+                (
+                  data.answers!.data![index] as {
+                    points: number
+                    answer: string
+                  }
+                ).answer
+              }
+              onChange={(content) => {
+                const nAnswers = data.answers!
+                nAnswers.data![index]!.answer = content
+
+                setData({
+                  ...data,
+                  answers: nAnswers,
+                })
+              }}
+            />
           </div>
         )
 
@@ -251,20 +667,9 @@ const ActivityAnswer: FC<Props> = ({
                 type="button"
                 className="w-full btn-primary"
                 onClick={() => {
-                  console.log('Data: ' + answers)
-                  dispatch({
-                    type: 'CHANGE_ANSWER',
-                    payload: {
-                      id: data.answers.id,
-                      data: data.answers.data,
-                    },
-                  })
-
-                  Inertia.visit(
+                  Inertia.post(
                     `/class/${id}/activity/${activity_id}/comparator/${index}`,
-                    {
-                      preserveState: true,
-                    }
+                    data as any
                   )
                 }}
               >
@@ -278,10 +683,8 @@ const ActivityAnswer: FC<Props> = ({
     }
   }
 
-  console.log(errors)
-
   return (
-    <Class id={id} mode={3} role="student" sidebar={sidebar}>
+    <Class id={id} mode={3}>
       <form
         className="w-full md:w-5/12 mx-auto pb-32 md:pb-16"
         onSubmit={(event) => {
@@ -328,7 +731,7 @@ const ActivityAnswer: FC<Props> = ({
             />
           </div>
         )}
-        <div className="flex justify-center mt-16">
+        <div className="flex justify-end mt-16">
           <button
             type="submit"
             className="btn-primary w-fit"
@@ -339,7 +742,7 @@ const ActivityAnswer: FC<Props> = ({
         </div>
       </form>
     </Class>
-  )
+  ) */
 }
 
 export default ActivityAnswer

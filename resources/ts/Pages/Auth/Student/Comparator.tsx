@@ -1,901 +1,613 @@
-import { FC, useState, useCallback } from 'react'
+// NOTE: Whoever reads this code, just don't.
+import {
+  FC,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  CSSProperties,
+} from 'react'
 import { Inertia } from '@inertiajs/inertia'
-import { Link } from '@inertiajs/inertia-react'
-import { useSelector, useDispatch } from 'react-redux'
-import {
-  ReactCompareSlider,
-  ReactCompareSliderImage,
-  ReactCompareSliderHandle,
-} from 'react-compare-slider'
-import {
-  ArrowDownIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from '@heroicons/react/solid'
+import { Link, usePage } from '@inertiajs/inertia-react'
 import ImageViewer from 'react-simple-image-viewer'
-import { cloneDeep } from 'lodash'
+import Auth, { User } from '@/Layouts/Auth'
+import s3Client, { S3PageProps, getFileURL } from '@/Lib/s3'
+import Editor from '@/Components/Editor'
+import html2canvas from 'html2canvas'
+import Cropper, { Area } from 'react-easy-crop'
+import * as markerjs2 from 'markerjs2'
+import { XCircleIcon } from '@heroicons/react/solid'
+import Select from '@/Components/Select'
+import { Question } from '../Instructor/ClassCreateActivity'
 import {
-  AnswerStates,
-  AnswerState,
-  ComparatorState,
-} from '@/Lib/answersReducer'
-import { SideBarSection } from '@/Layouts/Auth'
-import Class from '@/Layouts/Class'
-import RadioGroup from '@/Components/RadioGroup'
-import CheckBox from '@/Components/CheckBox'
+  ActionIcon,
+  Box,
+  Button,
+  Card,
+  Container,
+  Group,
+  Image,
+  Paper,
+  ScrollArea,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+} from '@mantine/core'
+import Selection from '@/Components/Selection'
+import { toBlob } from 'html-to-image'
+import Axios from 'axios'
+import useStyles from '@/Lib/styles'
+
+type FilterProps = 'none' | 'hue' | 'sepia' | 'saturate' | 'grayscale'
+
+export type Annotation = {
+  image: File | string
+  isKey: boolean
+  essay: string
+  state?: markerjs2.MarkerAreaState
+}
+export type AnnotationsState = Array<Annotation>
 
 type Props = {
   id: string
   activity_id: string
   answer_index: number
-  sidebar?: Array<SideBarSection>
+  question: Question
+  state_annotation?: AnnotationsState
 }
 
-const Comparator: FC<Props> = ({ id, activity_id, answer_index, sidebar }) => {
-  const answers = useSelector<AnswerStates, AnswerStates['answers']>(
-    (state) => state.answers
-  )
-  const answer = cloneDeep(answers.find((value) => value.id == activity_id))
-  const dispatch = useDispatch()
+const Comparator: FC<Props> = ({
+  id,
+  activity_id,
+  answer_index,
+  state_annotation,
+  question,
+}) => {
+  const { aws, user } = usePage().props
+  const _aws = aws as S3PageProps
+  const { classes } = useStyles()
 
-  if (answer == undefined || answer.data![answer_index] == undefined) {
-    Inertia.visit('/')
+  const [selectMode, setSelectMode] = useState<'left' | 'right'>('left')
+  const [isImagePreview, setIsImagePreview] = useState(false)
+
+  // Comparator
+  const [images, setImages] = useState<Array<string>>([])
+  const [leftIndex, setLeftIndex] = useState(0)
+  const [rightIndex, setRightIndex] = useState(1)
+  useEffect(() => {
+    const _user = user as User
+
+    Axios.defaults.headers.common = {
+      Authorization: `bearer ${_user.token}`,
+    }
+
+    const questionImages = question.files as Array<string>
+    let images: Array<string> = []
+
+    questionImages.map((value) =>
+      Axios.get(`/api/file?key=${value}`, {
+        headers: {
+          Authorization: `Bearer ${_user.token}`,
+        },
+        responseType: 'blob',
+      })
+        .then((response) => {
+          const reader = new window.FileReader()
+          reader.readAsDataURL(response.data)
+          reader.onload = () => {
+            let nImages = images
+            nImages.push(reader.result?.toString() ?? '#')
+            setImages([...nImages])
+          }
+        })
+        .catch((error) => {
+          alert('File fetch error!')
+          console.log(error)
+        })
+    )
+  }, [])
+
+  const [filter, setFilter] = useState<FilterProps>('none')
+
+  const [annotations, setAnnotations] = useState<Array<Annotation>>(
+    state_annotation ? state_annotation : []
+  )
+
+  const setFilterView = (): CSSProperties => {
+    switch (filter) {
+      case 'hue':
+        return { filter: 'hue-rotate(180deg)' }
+      case 'hue':
+        return { filter: 'hue-rotate(180deg)' }
+      case 'sepia':
+        return { filter: 'sepia(100%)' }
+      case 'saturate':
+        return { filter: 'saturate(4)' }
+      case 'grayscale':
+        return { filter: 'grayscale(100%)' }
+      case 'none':
+      default:
+        return {}
+    }
   }
 
-  const [comparator, setComparator] = useState(
-    answer!.data![answer_index].answer as ComparatorState
-  )
+  const [leftCrop, setLeftCrop] = useState({ x: 0, y: 0 })
+  const [leftZoom, setLeftZoom] = useState(1)
+  const [leftCroppedArea, setLeftCroppedArea] = useState<Area>()
 
-  const [imageClickMode, setImageClickMode] = useState<'set' | 'preview'>('set')
-  const [currentImage, setCurrentImage] = useState(0)
-  const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const [rightCrop, setRightCrop] = useState({ x: 0, y: 0 })
+  const [rightZoom, setRightZoom] = useState(1)
+  const [rightCroppedArea, setRightCroppedArea] = useState<Area>()
 
-  const images = comparator.images.map((value) => `/uploads/${value}`)
+  const ASPECT = 3 / 2
 
-  const openImageViewer = useCallback((index: number) => {
-    setCurrentImage(index)
-    setIsViewerOpen(true)
-  }, [])
-
-  const closeImageViewer = useCallback(() => {
-    setCurrentImage(0)
-    setIsViewerOpen(false)
-  }, [])
+  const containerRef = useRef<HTMLDivElement>(null)
 
   return (
-    <Class id={id} mode={3} role="student" sidebar={sidebar}>
-      <div className="pt-4 pb-2 px-4 border-b border-dark flex justify-between">
-        <div>
-          <div className="text-xl">{comparator.title}</div>
-          <div className="text-sm">{comparator.instructions}</div>
-        </div>
-        <div className="flex gap-4">
-          <div className="flex gap-4">
-            <div className="flex items-end">
-              <CheckBox
-                label="Preview Mode"
-                name="mode"
-                onChange={() => {
-                  switch (imageClickMode) {
-                    case 'preview':
-                      setImageClickMode('set')
-                      break
-                    case 'set':
-                      setImageClickMode('preview')
-                      break
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <span className="label">Image to Change</span>
-              <RadioGroup
-                name="set"
-                values={['left', 'right']}
-                onChange={(event) => {
-                  setComparator({
-                    ...comparator,
-                    select_mode: event.target.value as 'left' | 'right',
-                  })
-                }}
-              />
-            </div>
-          </div>
-          <div>
-            <Link
-              className="btn-alt mr-2"
+    <Auth class_id={id}>
+      <Container size="xl">
+        <Box>
+          <Group position="right">
+            <Button
+              color="gray"
+              component={Link}
               href={`/class/${id}/activity/${activity_id}`}
             >
               Cancel
-            </Link>
-            <button
-              type="button"
-              className="btn-primary"
+            </Button>
+            <Button
               onClick={() => {
-                const nAnswer = cloneDeep(answer!)
-                nAnswer!.data![answer_index].answer = comparator
-
-                dispatch({
-                  type: 'CHANGE_ANSWER',
-                  payload: {
-                    id: nAnswer.id,
-                    data: nAnswer.data,
-                  },
-                })
-                Inertia.visit(`/class/${id}/activity/${activity_id}`)
+                Inertia.post(
+                  `/class/${id}/activity/${activity_id}/index/${answer_index}`,
+                  {
+                    data: annotations,
+                  } as any
+                )
               }}
             >
               Done
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-4 mt-4 px-2">
-        <div className="flex flex-col gap-2">
-          <span className="text-md select-none">Set Left Image</span>
-          <div className="flex flex-col gap-2 w-full px-4">
-            <div>
-              <span className="text-left text-sm font-medium mr-2 mb-1">
-                Zoom
-              </span>
-              <div className="px-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    const rate = 0.1
+            </Button>
+          </Group>
+        </Box>
+        <Box
+          style={{
+            display: 'flex',
+          }}
+          py="sm"
+        >
+          <Stack
+            style={{
+              maxWidth: '200px',
+            }}
+          >
+            <Button
+              onClick={() => {
+                if (containerRef.current) {
+                  toBlob(containerRef.current, {
+                    quality: 1,
+                  })
+                    .then((blob) => {
+                      if (blob) {
+                        const date = new Date().valueOf()
+                        const nAnnotations = annotations
+                        const file = new File(
+                          [blob],
+                          `comparator-${id}-${activity_id}-${answer_index}-${annotations.length}-${date}.png`,
+                          {
+                            type: 'image/png',
+                            lastModified: date,
+                          }
+                        )
 
-                    setComparator({
-                      ...comparator,
-                      scales: {
-                        ...comparator.scales,
-                        left: comparator.scales.left + rate,
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          transform: `scale(${comparator.scales.left + rate})`,
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <ZoomInIcon className="icon-sm" />
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    const rate = 0.1
-
-                    setComparator({
-                      ...comparator,
-                      scales: {
-                        ...comparator.scales,
-                        left: comparator.scales.left - rate,
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          transform: `scale(${comparator.scales.left - rate})`,
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <ZoomOutIcon className="icon-sm" />
-                </button>
-
-                <button
-                  type="button"
-                  className="w-fit"
-                  onClick={() => {
-                    const nStyleLeft = comparator.styles.left
-                    delete nStyleLeft['transform']
-
-                    setComparator({
-                      ...comparator,
-                      scales: {
-                        ...comparator.scales,
-                        left: 1,
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: nStyleLeft,
-                      },
-                    })
-                  }}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-            <div>
-              <span className="text-left text-sm font-medium mr-2 mb-1">
-                Adjust
-              </span>
-              <div className="px-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    const rate = 1
-
-                    setComparator({
-                      ...comparator,
-                      location: {
-                        ...comparator.location,
-                        left: {
-                          ...comparator.location.left,
-                          y: comparator.location.left.y - rate,
-                        },
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          top: comparator.location.left.y - rate,
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <ArrowUpIcon className="icon-sm" />
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    const rate = 1
-
-                    setComparator({
-                      ...comparator,
-                      location: {
-                        ...comparator.location,
-                        left: {
-                          ...comparator.location.left,
-                          y: comparator.location.left.y + rate,
-                        },
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          top: comparator.location.left.y + rate,
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <ArrowDownIcon className="icon-sm" />
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    const rate = 1
-
-                    setComparator({
-                      ...comparator,
-                      location: {
-                        ...comparator.location,
-                        left: {
-                          ...comparator.location.left,
-                          x: comparator.location.left.x - rate,
-                        },
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          left: comparator.location.left.x - rate,
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <ArrowLeftIcon className="icon-sm" />
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    const rate = 1
-
-                    setComparator({
-                      ...comparator,
-                      location: {
-                        ...comparator.location,
-                        left: {
-                          ...comparator.location.left,
-                          x: comparator.location.left.x + rate,
-                        },
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          left: comparator.location.left.x + rate,
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <ArrowRightIcon className="icon-sm" />
-                </button>
-
-                <button
-                  type="button"
-                  className="w-fit"
-                  onClick={() => {
-                    const nStyleLeft = comparator.styles.left
-                    delete nStyleLeft['top']
-                    delete nStyleLeft['left']
-
-                    setComparator({
-                      ...comparator,
-                      location: {
-                        ...comparator.location,
-                        left: {
-                          x: 0,
-                          y: 0,
-                        },
-                      },
-                      styles: {
-                        ...comparator.styles,
-                        left: nStyleLeft,
-                      },
-                    })
-                  }}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-left text-sm font-medium mr-2 mb-1">
-                Filter
-              </span>
-              <div className="px-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    setComparator({
-                      ...comparator,
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          filter: 'hue-rotate(180deg)',
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    setComparator({
-                      ...comparator,
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          filter: 'sepia(100%)',
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <div className="w-4 h-4 rounded-full bg-yellow-200"></div>
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    setComparator({
-                      ...comparator,
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          filter: 'saturate(4)',
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2"
-                  onClick={() => {
-                    setComparator({
-                      ...comparator,
-                      styles: {
-                        ...comparator.styles,
-                        left: {
-                          ...comparator.styles.left,
-                          filter: 'grayscale(100%)',
-                        },
-                      },
-                    })
-                  }}
-                >
-                  <div className="w-4 h-4 rounded-full bg-slate-500"></div>
-                </button>
-
-                <button
-                  type="button"
-                  className="w-fit"
-                  onClick={() => {
-                    const nStyleLeft = comparator.styles.left
-                    delete nStyleLeft['filter']
-
-                    setComparator({
-                      ...comparator,
-                      styles: {
-                        ...comparator.styles,
-                        left: nStyleLeft,
-                      },
-                    })
-                  }}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-span-2 overflow-y-auto">
-          <div className="border border-dark rounded bg-slate-200 overflow-hidden shadow-sm mb-4">
-            <ReactCompareSlider
-              itemOne={
-                <ReactCompareSliderImage
-                  src={'/uploads/' + comparator.images[comparator.current.left]}
-                  style={{ position: 'relative', ...comparator.styles.left }}
-                />
-              }
-              itemTwo={
-                <ReactCompareSliderImage
-                  src={
-                    '/uploads/' + comparator.images[comparator.current.right]
-                  }
-                  style={{ position: 'relative', ...comparator.styles.right }}
-                />
-              }
-              onlyHandleDraggable={true}
-              onPositionChange={(position) =>
-                setComparator({ ...comparator, position: position })
-              }
-              handle={
-                <ReactCompareSliderHandle
-                  buttonStyle={{ display: 'none' }}
-                  linesStyle={{ height: '100%', width: 3 }}
-                />
-              }
-              position={comparator.position}
-            />
-          </div>
-
-          <div className="flex justify-center gap-2 overflow-y-auto px-4 py-2">
-            {comparator.images.map((value, index) => (
-              <img
-                key={index}
-                className={
-                  'w-16 h-16 rounded-md cursor-pointer ' +
-                  ((index == comparator.current.left ||
-                    index == comparator.current.right) &&
-                    'border-2 border-primary')
-                }
-                src={'/uploads/' + value}
-                onClick={() => {
-                  switch (imageClickMode) {
-                    case 'preview':
-                      openImageViewer(index)
-                      break
-                    case 'set':
-                      if (comparator.select_mode == 'left') {
-                        setComparator({
-                          ...comparator,
-                          current: {
-                            ...comparator.current,
-                            left: index,
-                          },
+                        nAnnotations.push({
+                          essay: '',
+                          image: file,
+                          isKey: false,
                         })
-                      } else {
-                        setComparator({
-                          ...comparator,
-                          current: {
-                            ...comparator.current,
-                            right: index,
-                          },
-                        })
+
+                        setAnnotations([...nAnnotations])
+                        setFilter('none')
                       }
-                  }
+                    })
+                    .catch((error) => {
+                      alert('An Error Occured')
+                      console.error(error)
+                    })
+                }
+              }}
+            >
+              Screenshot
+            </Button>
+
+            <Selection
+              selectProps={{
+                label: 'Filter',
+                value: filter,
+                data: [
+                  { value: 'none', label: 'None' },
+                  { value: 'hue', label: 'Hue' },
+                  { value: 'sepia', label: 'Sepia' },
+                  { value: 'saturate', label: 'Saturate' },
+                  { value: 'grayscale', label: 'Grayscale' },
+                ],
+                onChange: (value) => setFilter(value as any),
+              }}
+            />
+
+            <Selection
+              selectProps={{
+                label: 'Select Mode',
+                value: selectMode,
+                data: [
+                  { value: 'left', label: 'Left' },
+                  { value: 'right', label: 'Right' },
+                ],
+                onChange: (value) => setSelectMode(value as any),
+              }}
+            />
+            <Switch
+              label={`Preview Image`}
+              checked={isImagePreview}
+              onChange={(event) =>
+                setIsImagePreview(event.currentTarget.checked)
+              }
+            />
+
+            <Box>
+              <Text>Images</Text>
+              <ScrollArea offsetScrollbars>
+                <Stack>
+                  {images.map((value, index) => (
+                    <Image
+                      src={value}
+                      key={index}
+                      sx={(theme) => ({
+                        cursor: 'pointer',
+                        borderStyle: 'solid',
+                        borderWidth: '0.25rem',
+                        borderColor:
+                          leftIndex == index || rightIndex == index
+                            ? theme.colors.cyan[7]
+                            : theme.colors.gray[7],
+                        borderRadius: theme.radius.md,
+                      })}
+                      onClick={() => {
+                        if (!isImagePreview) {
+                          switch (selectMode) {
+                            case 'left':
+                              setLeftIndex(index)
+                              break
+                            case 'right':
+                              setRightIndex(index)
+                          }
+                        }
+                      }}
+                    />
+                  ))}
+                </Stack>
+              </ScrollArea>
+            </Box>
+          </Stack>
+          <Container size="xl">
+            <Paper
+              ref={containerRef}
+              style={{
+                display: 'flex',
+              }}
+              withBorder
+            >
+              <Skeleton visible={leftCroppedArea == undefined} radius={0}>
+                {leftCroppedArea ? (
+                  <View
+                    url={images[leftIndex]}
+                    croppedArea={leftCroppedArea}
+                    aspect={ASPECT}
+                    filter={setFilterView()}
+                  />
+                ) : (
+                  <></>
+                )}
+              </Skeleton>
+
+              <Skeleton visible={rightCroppedArea == undefined} radius={0}>
+                {rightCroppedArea ? (
+                  <View
+                    url={images[rightIndex]}
+                    croppedArea={rightCroppedArea}
+                    aspect={ASPECT}
+                    filter={setFilterView()}
+                  />
+                ) : (
+                  <></>
+                )}
+              </Skeleton>
+            </Paper>
+            <Box
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                width: '100%',
+                height: '50vh',
+              }}
+              py="sm"
+            >
+              <Box
+                style={{
+                  position: 'relative',
+                  height: '50vh',
+                  width: 300,
+                  overflow: 'hidden',
                 }}
-              />
+              >
+                <Cropper
+                  image={images[leftIndex]}
+                  aspect={ASPECT}
+                  onCropChange={setLeftCrop}
+                  crop={leftCrop}
+                  onZoomChange={setLeftZoom}
+                  zoom={leftZoom}
+                  onCropAreaChange={(croppedArea) =>
+                    setLeftCroppedArea(croppedArea)
+                  }
+                />
+              </Box>
+
+              <Box
+                style={{
+                  position: 'relative',
+                  height: '50vh',
+                  width: 300,
+                  overflow: 'hidden',
+                }}
+              >
+                <Cropper
+                  image={images[rightIndex]}
+                  aspect={ASPECT}
+                  onCropChange={setRightCrop}
+                  crop={rightCrop}
+                  onZoomChange={setRightZoom}
+                  zoom={rightZoom}
+                  onCropAreaChange={(croppedArea) =>
+                    setRightCroppedArea(croppedArea)
+                  }
+                />
+              </Box>
+            </Box>
+          </Container>
+        </Box>
+        <Container size="sm" py="lg">
+          <Stack>
+            {annotations.map((value, index) => (
+              <Card
+                key={index}
+                p="sm"
+                withBorder
+                sx={() => ({
+                  marginBottom: '1rem',
+                })}
+              >
+                <Card.Section
+                  p="sm"
+                  sx={(theme) => ({
+                    backgroundColor: theme.colors.cyan[7],
+                    color: theme.colors.gray[0],
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'end',
+                  })}
+                >
+                  <Text transform="capitalize">Annotation #{index + 1}</Text>
+                  <ActionIcon
+                    sx={(theme) => ({
+                      color: theme.colors.gray[0],
+                      ':hover': {
+                        backgroundColor: theme.colors.cyan[7],
+                        color: theme.colors.gray[1],
+                      },
+                    })}
+                    onClick={() => {
+                      const nAnnotations = annotations
+                      nAnnotations.splice(index, 1)
+                      setAnnotations([...nAnnotations])
+                    }}
+                  >
+                    <XCircleIcon className={classes.icon} />
+                  </ActionIcon>
+                </Card.Section>
+                <Box py="sm">
+                  <Marker
+                    index={index}
+                    value={value}
+                    annotations={annotations}
+                    setAnnotations={setAnnotations}
+                  />
+                </Box>
+              </Card>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Container>
+      </Container>
+    </Auth>
+  )
+}
 
-        <div className="flex justify-end">
-          <div className="flex flex-col gap-2">
-            <span className="text-md select-none">Set Right Image</span>
-            <div className="flex flex-col gap-2 w-full px-4">
-              <div className="flex justify-end">
-                <div>
-                  <span className="text-left text-sm font-medium mr-2 mb-1">
-                    Zoom
-                  </span>
-                  <div className="px-4 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 0.1
+type MarkerProps = {
+  index: number
+  value: Annotation
+  annotations: Array<Annotation>
+  setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>
+}
+const Marker: FC<MarkerProps> = ({
+  index,
+  value,
+  annotations,
+  setAnnotations,
+}) => {
+  const { aws, user } = usePage().props
+  const _aws = aws as S3PageProps
+  const client = s3Client(_aws)
+  const _user = user as User
 
-                        setComparator({
-                          ...comparator,
-                          scales: {
-                            ...comparator.scales,
-                            right: comparator.scales.right + rate,
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              transform: `scale(${
-                                comparator.scales.right + rate
-                              })`,
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <ZoomInIcon className="icon-sm" />
-                    </button>
+  const [url, setUrl] = useState('')
+  const imgRef = useRef<HTMLImageElement>(null)
+  const overRef = useRef<HTMLImageElement>(null)
+  const [parent, setParent] = useState<HTMLElement | null | undefined>()
 
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 0.1
+  const [annotate, setAnnotate] = useState(value)
 
-                        setComparator({
-                          ...comparator,
-                          scales: {
-                            ...comparator.scales,
-                            right: comparator.scales.right - rate,
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              transform: `scale(${
-                                comparator.scales.right - rate
-                              })`,
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <ZoomOutIcon className="icon-sm" />
-                    </button>
+  useEffect(() => {
+    if (value.isKey) {
+      Axios.defaults.headers.common = {
+        Authorizaton: `bearer ${_user.token}`,
+      }
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nStylright = comparator.styles.right
-                        delete nStylright['transform']
+      Axios.get(`/api/file?key=${value.image as string}`, {
+        headers: {
+          Authorization: `Bearer ${_user.token}`,
+        },
+        responseType: 'blob',
+      })
+        .then((res) => {
+          const reader = new window.FileReader()
+          reader.readAsDataURL(res.data)
+          reader.onload = () => {
+            const result = reader.result?.toString()
+            if (result) {
+              setUrl(result)
+              setParent(overRef.current?.parentElement)
+            } else {
+              alert('Error fetching image!')
+            }
+          }
+        })
+        .catch((error) => {
+          alert('File fetching error!')
+          console.error(error)
+        })
+    } else {
+      setUrl(URL.createObjectURL(value.image as File))
+    }
+  }, [])
 
-                        setComparator({
-                          ...comparator,
-                          scales: {
-                            ...comparator.scales,
-                            right: 1,
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: nStylright,
-                          },
-                        })
-                      }}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              </div>
+  useEffect(() => {
+    let nAnnotations = annotations
+    nAnnotations[index] = annotate
+    setAnnotations(nAnnotations)
+  }, [annotate])
 
-              <div className="flex justify-end">
-                <div>
-                  <span className="text-left text-sm font-medium mr-2 mb-1">
-                    Adjust
-                  </span>
-                  <div className="px-4 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        setComparator({
-                          ...comparator,
-                          location: {
-                            ...comparator.location,
-                            right: {
-                              ...comparator.location.right,
-                              y: comparator.location.right.y - rate,
-                            },
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              top: comparator.location.right.y - rate,
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <ArrowUpIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        setComparator({
-                          ...comparator,
-                          location: {
-                            ...comparator.location,
-                            right: {
-                              ...comparator.location.right,
-                              y: comparator.location.right.y + rate,
-                            },
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              top: comparator.location.right.y + rate,
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <ArrowDownIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        setComparator({
-                          ...comparator,
-                          location: {
-                            ...comparator.location,
-                            right: {
-                              ...comparator.location.right,
-                              x: comparator.location.right.x + rate,
-                            },
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              right: comparator.location.right.x + rate,
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <ArrowLeftIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const rate = 1
-
-                        setComparator({
-                          ...comparator,
-                          location: {
-                            ...comparator.location,
-                            right: {
-                              ...comparator.location.right,
-                              x: comparator.location.right.x - rate,
-                            },
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              right: comparator.location.right.x - rate,
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <ArrowRightIcon className="icon-sm" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nStylright = comparator.styles.right
-                        delete nStylright['top']
-                        delete nStylright['right']
-
-                        setComparator({
-                          ...comparator,
-                          location: {
-                            ...comparator.location,
-                            right: {
-                              x: 0,
-                              y: 0,
-                            },
-                          },
-                          styles: {
-                            ...comparator.styles,
-                            right: nStylright,
-                          },
-                        })
-                      }}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <div>
-                  <span className="text-left text-sm font-medium mr-2 mb-1">
-                    Filter
-                  </span>
-                  <div className="px-4 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        setComparator({
-                          ...comparator,
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              filter: 'hue-rotate(180deg)',
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        setComparator({
-                          ...comparator,
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              filter: 'sepia(100%)',
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-yellow-200"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        setComparator({
-                          ...comparator,
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              filter: 'saturate(4)',
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        setComparator({
-                          ...comparator,
-                          styles: {
-                            ...comparator.styles,
-                            right: {
-                              ...comparator.styles.right,
-                              filter: 'grayscale(100%)',
-                            },
-                          },
-                        })
-                      }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-slate-500"></div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nStyleRight = comparator.styles.right
-                        delete nStyleRight['filter']
-
-                        setComparator({
-                          ...comparator,
-                          styles: {
-                            ...comparator.styles,
-                            right: nStyleRight,
-                          },
-                        })
-                      }}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {isViewerOpen ? (
-        <ImageViewer
-          src={images}
-          currentIndex={currentImage}
-          disableScroll={false}
-          closeOnClickOutside={true}
-          onClose={closeImageViewer}
-          backgroundStyle={{
-            background: 'rgba(0, 0, 0, 0.9)',
+  return (
+    <Stack>
+      <div
+        style={{
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          paddingTop: 50,
+        }}
+      >
+        <img
+          src={url}
+          ref={overRef}
+          style={{
+            cursor: 'pointer',
           }}
         />
-      ) : (
-        <></>
-      )}
-    </Class>
+
+        <img
+          src={url}
+          ref={imgRef}
+          style={{
+            cursor: 'pointer',
+            position: 'absolute',
+          }}
+          onClick={() => {
+            if (imgRef.current) {
+              const markerArea = new markerjs2.MarkerArea(imgRef.current)
+
+              if (parent) {
+                markerArea.targetRoot = parent
+              }
+
+              markerArea.availableMarkerTypes = [
+                markerjs2.TextMarker,
+                markerjs2.FreehandMarker,
+              ]
+
+              markerArea.addEventListener('render', (event) => {
+                if (imgRef.current) {
+                  imgRef.current.src = event.dataUrl
+                  setAnnotate({ ...annotate, state: event.state })
+                }
+              })
+              markerArea.settings.displayMode = 'popup'
+              markerArea.renderAtNaturalSize = true
+              markerArea.renderImageType = 'image/png'
+              markerArea.renderImageQuality = 1.0
+              markerArea.show()
+
+              if (annotate.state) {
+                markerArea.restoreState(annotate.state)
+              }
+            }
+          }}
+        />
+      </div>
+
+      <Editor
+        setContents={annotate.essay}
+        name={`essay-${index}`}
+        onChange={(value) => setAnnotate({ ...annotate, essay: value })}
+      />
+    </Stack>
+  )
+}
+
+type ViewProps = {
+  croppedArea: Area
+  url: string
+  aspect: number
+  filter: CSSProperties
+}
+
+const View: FC<ViewProps> = ({ croppedArea, url, aspect, filter }) => {
+  const scale = 100 / croppedArea.width
+  const transform = {
+    x: `${-croppedArea.x * scale}%`,
+    y: `${-croppedArea.y * scale}%`,
+    scale,
+    width: 'calc(100% + 0.5px)',
+    height: 'auto',
+  }
+
+  const imageStyle: CSSProperties = {
+    transform: `translate3d(${transform.x}, ${transform.y}, 0) scale3d(${transform.scale},${transform.scale},1)`,
+    width: transform.width,
+    height: transform.height,
+  }
+
+  return (
+    <div
+      style={{
+        paddingBottom: `${100 / aspect}%`,
+        width: '400px',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <img
+        src={url}
+        style={{
+          ...imageStyle,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          transformOrigin: 'top left',
+          ...filter,
+        }}
+      />
+    </div>
   )
 }
 

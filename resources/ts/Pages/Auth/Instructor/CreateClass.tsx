@@ -4,11 +4,9 @@ import TextInput from '@/Components/TextInput'
 import Select from '@/Components/Select'
 import Auth from '@/Layouts/Auth'
 
-type Props = {
-  role: string
-}
+type Props = {}
 
-const CreateClass: FC<Props> = ({ role }) => {
+const CreateClass: FC<Props> = ({}) => {
   const { data, setData, post, processing, errors } = useForm({
     section: '',
     room: '',
@@ -37,7 +35,7 @@ const CreateClass: FC<Props> = ({ role }) => {
   }
 
   return (
-    <Auth role={role}>
+    <Auth>
       <div className="container-lg py-4">
         <div className="font-light text-lg w-fit mx-auto mb-4">
           Create Class

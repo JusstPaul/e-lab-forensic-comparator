@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('title');
             $table->string('type');
             $table->date('date_end');
-            $table->time('time_end');
+            $table->dateTime('time_end');
             $table->json('questions');
             $table->bigInteger('classes_id');
             $table->foreign('classes_id')
